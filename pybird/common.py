@@ -26,9 +26,32 @@ class Common(object):
         The maximum multipole to calculate (default 2)
     """
 
-    def __init__(self, Nl=2, kmin=0.001, kmax=0.25, km=1., kr=1., nd=3e-4, eft_basis='eftoflss',
-        halohalo=True, with_cf=False, with_time=True, accboost=1., optiresum=False, orderresum=16, 
-        with_uvmatch=False, exact_time=False, quintessence=False, with_tidal_alignments=False, nonequaltime=False, keep_loop_pieces_independent=False):
+    def __init__(
+        self,
+        Nl=2,
+        kmin=0.001,
+        kmax=0.25,
+        km=1.,
+        kr=1.,
+        nd=3e-4,
+        eft_basis='eftoflss',
+        halohalo=True,
+        with_cf=False,
+        with_time=True,
+        accboost=1.,
+        optiresum=False,
+        orderresum=16,
+        with_uvmatch=False,
+        exact_time=False,
+        quintessence=False,
+        Omega_rc=None,
+        #fR0 = None,
+        background='lcdm',
+        model='lcdm',
+        timedep='propto_omega',
+        with_tidal_alignments=False,
+        nonequaltime=False,
+        keep_loop_pieces_independent=False):
         
         self.eft_basis = eft_basis
         self.halohalo = halohalo
@@ -41,6 +64,11 @@ class Common(object):
         self.with_uvmatch = with_uvmatch
         self.exact_time = exact_time
         self.quintessence = quintessence
+        self.background = background
+        self.model = model
+        self.timedep = timedep
+        self.Omega_rc = Omega_rc
+        #self.fR0 = fR0
         # if self.quintessence: self.exact_time = True
         self.with_tidal_alignments = with_tidal_alignments
         self.nonequaltime = nonequaltime
@@ -53,7 +81,7 @@ class Common(object):
 
         if self.halohalo:
             
-            self.N11 = 3  # number of linear termss
+            self.N11 = 3  # number of linear terms
             if self.eft_basis in ["eftoflss", "westcoast"]: self.Nct, self.Nnnlo = 6, 2  # number of counterterms k^2 P11, number of NNLO counterterms k^4 P11
             elif self.eft_basis == "eastcoast": self.Nct, self.Nnnlo = 3, 3
             if self.exact_time:
@@ -76,10 +104,10 @@ class Common(object):
                 if self.with_tidal_alignments: self.Nloop = 18          
                 else: self.Nloop = 12
             else: 
-                if self.exact_time: self.Nloop = 35 # giving nothing, however, more terms than in EdS
+                if self.exact_time:
+                    self.Nloop = 35 # giving nothing, however, more terms than in EdS
                 elif self.nonequaltime: self.Nloop = self.N13+self.N22
-                else: self.Nloop = 22                                    # giving nothing (this is EdS)
-                
+                else: self.Nloop = 22                                   # giving nothing (this is EdS)
 
         else: # halo-matter
             self.N11 = 4  # number of linear terms
