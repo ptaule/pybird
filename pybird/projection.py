@@ -4,10 +4,10 @@ from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.integrate import quad
 from scipy.special import legendre, spherical_jn, j1
-from pybird.fftlog import FFTLog, MPC
-from pybird.common import co
-from pybird.greenfunction import GreenFunction
-from pybird.fourier import FourierTransform
+from fftlog import FFTLog, MPC
+from common import co
+from greenfunction import GreenFunction
+from fourier import FourierTransform
 
 # import importlib, sys
 # importlib.reload(sys.modules['greenfunction'])
@@ -173,11 +173,18 @@ class Projection(object):
 
             if bird.with_bias:
                 bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup)
-            else:
-                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
-                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
-                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
-                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
+            # MP #
+            bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
+            bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
+            bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
+            if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)
+            if bird.with_fnl: bird.Pfnll = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pfnll, kp, arrayLegendremup)
+            # else:
+            #    bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
+            #    bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
+            #    bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
+            #    if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
+            ######
 
     def integrWindow(self, P):
         """
@@ -271,7 +278,6 @@ class Projection(object):
             bird.P11l += self.dPcorr(self.co.k, self.co.k, bird.P11l, many=True)
             bird.Pctl += self.dPcorr(self.co.k, self.co.k, bird.Pctl, many=True)
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
-            # bird.Pnnlol += self.dPcorr(self.co.k, self.co.k, bird.Pnnlol, many=True)
 
     def loadBinning(self, xout, binsize):
         """
@@ -361,7 +367,7 @@ class Projection(object):
                 bird.Ploopl = self.integrWedges(bird.Ploopl)
                 if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWedges(bird.Pnnlol)
-    
+
     def Wedges_external(self, P):
         return self.integrWedges(P, many=False)
 
@@ -462,8 +468,4 @@ class Projection(object):
             bird.C11l = integration(tlin, bird.C11l)
             bird.Cctl = integration(tct, bird.Cctl)
             bird.Cloopl = integration(tloop, bird.Cloopl)
-
-        
-
-            
 

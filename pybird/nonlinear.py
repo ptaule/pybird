@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 from scipy.special import gamma
-from pybird.fftlog import FFTLog, MPC, CoefWindow
-from pybird.common import co
+from fftlog import FFTLog, MPC, CoefWindow
+from common import co
 
 class NonLinear(object):
     """
@@ -49,7 +49,7 @@ class NonLinear(object):
 
         self.fftsettings = dict(Nmax=NFFT, xmin=1.e-4, xmax=100., bias=fftbias) # notice that if one wants to resolve the Cf up to s ~ 1000 (which is clearly way beyond what we can analyze) use here xmin=1e-5 instead 
         self.fft = FFTLog(**self.fftsettings)
-        
+
         if self.co.halohalo:
             if self.co.exact_time: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_exact_time.npz') % (NFFT, self.co.Nl)
             elif self.co.with_tidal_alignments: self.pyegg = os.path.join(path, 'pyegg%s_nl%s_tidal_alignments.npz') % (NFFT, self.co.Nl)
@@ -80,7 +80,8 @@ class NonLinear(object):
             self.setMcfct()
 
         if save is True:
-            try: np.savez(self.pyegg, Pow=self.fft.Pow, M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)
+            try:
+                np.savez(self.pyegg, Pow=self.fft.Pow, M22=self.M22, M13=self.M13, Mcf11=self.Mcf11, Mcf22=self.Mcf22, Mcf13=self.Mcf13, Mcfct=self.Mcfct)
             except: print ('Can\'t save loop matrices at %s.' % path)
 
         self.setkPow()
