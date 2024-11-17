@@ -63,7 +63,7 @@ class Bird(object):
         EFT parameters for the counter terms per multipole
     """
 
-    def __init__(self, cosmology=None, with_bias=True, eft_basis='eftoflss', with_stoch=False, with_nnlo_counterterm=False, co=co):
+    def __init__(self, cosmology=None, with_bias=True, eft_basis='eftoflss', with_stoch=False, with_nnlo_counterterm=False, co=co, bias = None):
 
         self.co = co
 
@@ -73,7 +73,7 @@ class Bird(object):
         self.with_nnlo_counterterm = with_nnlo_counterterm
         self.with_tidal_alignments = self.co.with_tidal_alignments
 
-        if cosmology is not None: self.setcosmo(cosmology)
+        if cosmology is not None: self.setcosmo(cosmology, bias = bias)
 
         self.P22 = np.empty(shape=(self.co.N22, self.co.Nk))
         self.P13 = np.empty(shape=(self.co.N13, self.co.Nk))
@@ -85,7 +85,10 @@ class Bird(object):
         self.Cct = np.empty(shape=(self.co.Nl, self.co.Ns))
         self.Cf = np.zeros(shape=(3, self.co.Nl, self.co.Ns)) # 3: linear, 1-loop, NNLO
 
-        if not with_bias:
+        # MP #
+        # if not with_bias:
+        if not with_bias or with_bias:
+        ######
             self.Ploopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Nk))
             self.P11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Nk))
             self.Pctl = np.empty(shape=(self.co.Nl, self.co.Nct, self.co.Nk))
@@ -161,17 +164,30 @@ class Bird(object):
         else: # this was clashing with redshift_bin: True, because for output: 'bpk', it is the correlation that is first computed, so co.with_cf = True at the instatiation of the bird... need to change that # PZ
             self.Pnnlol = None
             self.Cnnlol = None
+
+        if bias is not None: self.setBias(bias) #I need this for the bootstrap
+            
+        
             # if self.co.with_cf: self.Cnnlol = None
             # else: self.Pnnlol = None
 
-    def setcosmo(self, cosmo):
+    def setcosmo(self, cosmo, bias = None):
 
         self.kin = cosmo["kk"]
         self.Pin = cosmo["pk_lin"]
-        if self.Pin is not None: 
+        if self.co.model == 'bootstrap':
+            # MP #
+            self.epsD = cosmo["mg_parameters"]["epsD"]
+            self.epsf = cosmo["mg_parameters"]["epsf"]
+            self.epsdg = cosmo["mg_parameters"]["epsdg"]
+            self.epsag = cosmo["mg_parameters"]["epsag"]
+            self.epsdga = cosmo["mg_parameters"]["epsdga"]
+            ######
+            self.Pin = (1 + self.epsD)**2 * cosmo["P11"]
+        try: 
             self.Plin = interp1d(self.kin, self.Pin, kind='cubic')
             self.P11 = self.Plin(self.co.k)
-        else:
+        except:
             self.Plin = None
             self.P11 = None
 
@@ -187,27 +203,96 @@ class Bird(object):
         self.H = cosmo["H"]
 
         if self.co.exact_time:
-            if "w0_fld" in cosmo: self.w0 = cosmo["w0_fld"]
-            else: self.w0 = None
+            try: 
+                if cosmo["w0_fld"] is None:
+                    self.w0 = -1.
+                else:
+                    self.w0 = cosmo["w0_fld"]
+            except: self.w0 = -1.
+            try: 
+                if cosmo["wa_fld"] is None:
+                    self.wa = 0.
+                else:
+                    self.wa = cosmo["wa_fld"]
+            except: self.wa = 0.
+
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
-            # print (self.z, self.Omega0_m)
+            if self.co.model == "EFTofDE":
+                try: self.alphaB = cosmo["alpha_B0"]
+                except: self.alphaB = 0.
+                try: self.alphaT = cosmo["alpha_T0"]
+                except: self.alphaT = 0.
+                try: self.alphaM = cosmo["alpha_M0"]
+                except: self.alphaM = 0.
+                try: self.eta = cosmo["eta"]
+                except: pass
+            else: 
+                self.alphaB = None
+                self.alphaT = None
+                self.alphaM = None
+                self.eta = None
             self.a = 1/(1.+self.z)
-            GF = GreenFunction(self.Omega0_m, w=self.w0, quintessence=self.co.quintessence)
-            self.Y1 = GF.Y(self.a)
-            self.G1t = GF.mG1t(self.a)
-            self.V12t = GF.mV12t(self.a)
-            if self.co.quintessence:
-                self.G1 = GF.G(self.a)
-                self.f = GF.fplus(self.a)
+            self.GF = GreenFunction(self.Omega0_m,
+                                    w=self.w0,
+                                    wa=self.wa,
+                                    Omega_rc=self.co.Omega_rc,
+                                    fR0=self.co.fR0,
+                                    background=self.co.background,
+                                    model = self.co.model,
+                                    timedep=self.co.timedep,
+                                    alphaT = self.alphaT,
+                                    alphaB = self.alphaB,
+                                    alphaM = self.alphaM,
+                                    eta = self.eta)
+
+
+            if self.co.model == "bootstrap":
+                self.Y1 = 0
+                self.G1t = 0
+                self.V12t = 0
+                self.Y1LCDM = self.GF.Y(self.a)
+                self.G1tLCDM = self.GF.mG1t(self.a)
+                self.V12tLCDM = self.GF.mV12t(self.a)
+                #self.V12dLCDM = self.GF.mV12d(self.a)
+
+            else:
+                self.Y1 = self.GF.Y(self.a)
+                self.G1t = self.GF.mG1t(self.a)
+                self.V12t = self.GF.mV12t(self.a)
+                #self.V12d = self.GF.mV12d(self.a)
+            if self.co.model == 'quintessence':
+                self.G1 = self.GF.G(self.a)
+                self.f = self.GF.fplus(self.a)
+            elif self.co.model == 'fR':
+                #if self.f[0][0] == 0.:
+                try:
+                    if self.f[0] == 0.:
+                        self.f = self.f[:len(self.co.k)]
+                        pass
+                    else:
+                        self.f = self.GF.f_scale(self.a, self.co.k) [0]##still not sure about the k
+                except:
+                    pass
+                try:
+                    if self.f[0][0] == 0.:
+                        self.f = self.f[:len(self.co.k)]
+                        pass
+                    else:
+                        self.f = self.GF.f_scale(self.a, self.co.k) [0]##still not sure about the k
+                except:
+                    pass
+                self.G1 = 1.
+
+                #if self.co
             else: self.G1 = 1.
             # print (self.Y1, self.G1t, self.V12t, self.G1, self.f, GF.fplus(self.a))
-            
-            # print ("setting EdS time approximation")
-            # self.Y1 = 0.
-            # self.G1t = 3/7.
-            # self.V12t = 1/7.
-            # self.G1 = 1.
+            # except:
+            #     print ("setting EdS time approximation")
+            #     self.Y1 = 0.
+            #     self.G1t = 3/7.
+            #     self.V12t = 1/7.
+            #     self.G1 = 1.
 
         if self.co.nonequaltime:
             self.D = cosmo["D"]
@@ -224,12 +309,51 @@ class Bird(object):
         bs : array
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
-
+        #***
+        if self.co.model == 'bootstrap':
+        # MP #
+            # self.epsf = bias["epsf"]
+            #self.D = bias["D"]
+            # f = (1 + self.epsf)*self.f
+            # self.epsD = bias["epsD"]
+            self.f = (1 + self.epsf)*self.f 
+        # else:
+        #     f = self.f
         f = self.f
-        # print ()
+        ######
+        
+        #*********
 
         if self.co.exact_time:
             ## EdS: Y1 = 0., G1t = 3/7., V12t = 1/7.
+
+            #bootstrap functions
+            if self.co.model == 'bootstrap':
+                #********
+                # self.epsag = bias["epsag"] # this is \epsilon_{a_\gamma}
+                # self.epsdg = bias["epsdg"] # this is \epsilon_{d_{\gamma}}
+                # self.epsdga = bias["epsdga"] # this is \epsilon_{d_{\gamma a}}
+                self.agLCDM = 2.*self.Y1LCDM + 10./7.
+                self.dgLCDM = 2*self.G1tLCDM
+                self.dgaLCDM = 2.*self.Y1LCDM - 2*self.V12tLCDM + 3./7.
+                #self.aggLCDM = 2.*self.Y1LCDM - 2*self.V12dLCDM + 3./7.
+
+                #the following parameters are needed for the paper with Amendola
+                #d_{\gamma, a}^{(3)}
+                self.dga3LCDM = 4*self.GF.mG1d(self.a) - 4*self.GF.mV12t(self.a) - 2
+                #a_{\gamma, a}^{(3)}
+                #self.aga3LCDM = 4*self.GF.mG1d(self.a) - 4*self.GF.mV12d(self.a) - 2
+                #a_\gamma^{(2)}
+                self.ag2LCDM = 2*self.GF.mG1d(self.a)
+                #d_\gamma^{(2)}
+                self.dg2LCDM = 2*self.GF.mG1t(self.a)
+                self.ag = (1. + self.epsag)*self.agLCDM
+                self.dg = (1. + self.epsdg)*self.dgLCDM
+                self.dga = (1. + self.epsdga)*self.dgaLCDM
+                self.Y1 = self.ag/2. - 5./7.#self.ag
+                self.G1t = self.dg/2.#self.dga
+                self.V12t = self.ag/2. - self.dga/2. - 1./2.# - self.dgg/4.
+
             G1 = self.G1
             Y1 = self.Y1
             G1t = self.G1t
@@ -318,7 +442,6 @@ class Bird(object):
                 self.bct = np.array([b1 * dct, b1 * dr1, b1 * dr2, f * dct, f * dr1, f * dr2, cct, cr1, cr2, f * cct, f * cr1, f * cr2])
                 if self.co.Nloop == 5: self.bloop = np.array([1., b1, b2, b3, b4])
 
-
     def setPs(self, bs=None, setfull=True):
         """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
 
@@ -362,6 +485,9 @@ class Bird(object):
         self.setBias(bs)
         self.setPs(setfull=setfull)
         self.setCf(setfull=setfull)
+        # MP #
+        self.setPsCfl()
+        ######
 
     def setfullPs(self):
         """ For option: which='full'. Adds together the linear and the loop parts to get the full power spectrum multipoles """
@@ -715,7 +841,6 @@ class Bird(object):
             elif self.co.Nloop == 25:
                 pass
 
-
         self.subtractShotNoise()
 
     def reducePsCflf(self): # depreciated
@@ -811,23 +936,36 @@ class Bird(object):
 
         if Q is None: Q = self.Q
 
-        if self.with_bias:
-            self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
-        else:
-            self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
-            self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
-            self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
+        # MP #
+        # if self.with_bias:
+        #     self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
+        # else:
+        #     self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
+        #     self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
+        #     self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
+        self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
+        self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
+        self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
+        self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
+        ######
 
     def setresumPs(self, setfull=True):
+        
+        # MP #
+        # if self.with_bias:
+        #     self.Ps[:2] += self.fullIRPs
+        #     if setfull is True: self.setfullPs()
 
-        if self.with_bias:
-            self.Ps[:2] += self.fullIRPs
-            if setfull: self.setfullPs()
-
-        else:
-            self.P11l += self.fullIRPs11
-            self.Pctl += self.fullIRPsct
-            self.Ploopl += self.fullIRPsloop
+        # else:
+        #     self.P11l += self.fullIRPs11
+        #     self.Pctl += self.fullIRPsct
+        #     self.Ploopl += self.fullIRPsloop
+        self.Ps[:2] += self.fullIRPs
+        if setfull is True: self.setfullPs()
+        self.P11l += self.fullIRPs11
+        self.Pctl += self.fullIRPsct
+        self.Ploopl += self.fullIRPsloop
+        ######
 
     def setresumCf(self, setfull=True):
 
