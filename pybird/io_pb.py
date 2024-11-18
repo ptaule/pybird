@@ -16,7 +16,7 @@ class ReadWrite(object):
         return d, fc_sky, fd_sky
 
     def check(self, c, d, verbose=True):
-        
+        #these are the options present only inside the likelihood
         options_in_config = ['with_bao_rec', "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin", "with_stoch", "with_nnlo_counterterm"]
         for keys in options_in_config:
             if not keys in c: c[keys] = False
@@ -64,7 +64,9 @@ class ReadWrite(object):
     def config(self, c, fd_sky):
         options_for_correlator = ["output", "multipole", "km", "kr", "nd", 
                                   "eft_basis", "with_stoch", "with_nnlo_counterterm", 
-                                  "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin"]
+                                  "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin",
+                                  #MM: added the exact time, with all the models
+                                  "with_exact_time", "Omega_rc", "fR0", "expansion_model", "mg_model", "gravity_model"]
 
         fc_sky = [] # skylist of formatted config dict for Correlator
 
@@ -101,6 +103,9 @@ class ReadWrite(object):
             cov = dd['cov']
 
             if c['with_wedge']:
+                #for PA-w1-w2 look at eq.15 of 2110.00016
+                #for Q0-w1-w2 look at eq.3.18 of 2110.00006
+                #I think that to use it you need to put l=4 for the multipoles
                 if c['wedge_type'] == 'PA-w1-w2': mat = np.array([[1., -3./7., 11./56.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
                 elif c['wedge_type'] == 'Q0-w1-w2': mat = np.array([[1., -1./2., 3./8.], [1., -3/8., 15/128.], [1., 3/8., -15./128.]])
                 y_arr = np.einsum('al,lk->ak', mat, y_arr)

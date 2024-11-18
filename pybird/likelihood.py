@@ -3,8 +3,8 @@ import numpy as np
 from scipy.constants import c as c_light
 from scipy.linalg import block_diag
 
-from pybird.correlator import Correlator
-from pybird.io_pb import ReadWrite
+from correlator import Correlator
+from io_pb import ReadWrite
 
 class Likelihood(object):
     """EFT Likelihood"""

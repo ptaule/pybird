@@ -16,8 +16,8 @@ from fourier import FourierTransform
 from matching import Matching
 ## MP ##
 # from bispectrum_nl import BispectrumNl
-from bispectrum_nl_quad import BispectrumNl
-from bispectrum import Bispectrum
+#from bispectrum_nl_quad import BispectrumNl
+#from bispectrum import Bispectrum
 
 
 class Correlator(object):
@@ -963,9 +963,9 @@ class Correlator(object):
                     if self.c["multipole"] != 0: cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
 
             if self.c["expansion_model"] == 'w0wa': 
+                #Actually we don't need this since Petter already modified Hi_class
                 zm = 5. # z in matter domination
                 def scale_factor(z): return 1/(1.+z)
-                #print(cosmo)
                 Omega0_m = cosmo["Omega0_m"]
                 w0 = cosmo["w0_fld"]
                 wa = cosmo["wa_fld"]
