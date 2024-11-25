@@ -434,7 +434,7 @@ class Correlator(object):
             elif self.c["xdata"] is not None: self.projection.xdata(self.bird)
             if self.c["with_wedge"]: self.projection.Wedges(self.bird)
 
-    def get(self, bias=None, pk=True, bk = False, concatenate=True, what="full", diagram='all'):
+    def get(self, bias=None, pk=True, bk = False, concatenate=False, what="full", diagram='all'):
 
         if not self.c["with_bias"]:
             self.__is_bias_conflict(bias)
@@ -459,7 +459,7 @@ class Correlator(object):
             correlator.append(bisp)
 
         if concatenate: return np.concatenate([c.reshape(-1) for c in correlator])
-        else: return correlator 
+        else: return correlator[0]
 
     def getmarg(self, bias, marg_gauss_eft_parameters_list):
 
@@ -476,24 +476,17 @@ class Correlator(object):
             if nnlol is not None: nnlo = np.swapaxes(nnlol, axis1=0, axis2=1).reshape(nnlol.shape[1],-1)
 
             pg = np.empty(shape=(len(marg_gauss_eft_parameters_list), loop.shape[1]))
-            
             for i, p in enumerate(marg_gauss_eft_parameters_list):
-                #MM: notice that here I have different biases wrt my local version
-                if p in ['Bb3', 'Bb8']:
+                if p in ['b3', 'bGamma3']:
                     if self.co.Nloop == 12: pg[i] = loop[3] + b1 * loop[7]                          # config["with_time"] = True
                     elif self.co.Nloop == 18: pg[i] = loop[3] + b1 * loop[7] + bq * loop[16]        # config["with_time"] = True, config["with_tidal_alignments"] = True
                     elif self.co.Nloop == 22: pg[i] = f * loop[8] + b1 * loop[16]                   # config["with_time"] = False, config["with_exact_time"] = False
                     elif self.co.Nloop == 35: pg[i] = f * loop[18] + b1 * loop[29]                  # config["with_time"] = False, config["with_exact_time"] = True
-                    if p == 'Bb8': pg[i] *= 15.
-                # counterterm   
-                elif p == 'Bc1': # cct = - Bc1
-                    pg[i] = -2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 pk_lin 
-                elif p == 'Bc2': # cr1 = f Bc2 - f^2 Bc4/2
-                    pg[i] = f * 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin 
-                elif p == 'Bc3': # cr2 = - f^2 Bc3 / 2
-                    pg[i] = - 0.5 * f**2 *  2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 pk_lin 
-                elif p == 'Bc4': # cr1 = f Bc2 - f^2 Bc4/2
-                    pg[i] = - 0.5 * f**2 *  2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin 
+                    if p == 'bGamma3': pg[i] *= 6. # b3 = b1 + 15. * bG2 + 6. * bGamma3 : config["eft_basis"] = 'eastcoast'
+                # counterterm : config["eft_basis"] = 'eftoflss' or 'westcoast'
+                elif p == 'cct': pg[i] = 2 * (f * ct[0+3] + b1 * ct[0]) / self.c["km"]**2 # ~ 2 (b1 + f * mu^2) k^2/km^2 pk_lin
+                elif p == 'cr1': pg[i] = 2 * (f * ct[1+3] + b1 * ct[1]) / self.c["kr"]**2 # ~ 2 (b1 mu^2 + f * mu^4) k^2/kr^2 pk_lin
+                elif p == 'cr2': pg[i] = 2 * (f * ct[2+3] + b1 * ct[2]) / self.c["kr"]**2 # ~ 2 (b1 mu^4 + f * mu^6) k^2/kr^2 pk_lin
                 # counterterm : config["eft_basis"] = 'eastcoast'                       # (2.15) and (2.23) of 2004.10607
                 elif p in ['c0', 'c2', 'c4']:
                     ct0, ct2, ct4 = - 2 * ct[0], - 2 * f * ct[1], - 2 * f**2 * ct[2]    # - 2 ct0 k^2 pk_lin , - 2 ct2 f mu^2 k^2 pk_lin , - 2 ct4 f^2 mu^4 k^2 pk_lin
@@ -501,14 +494,17 @@ class Correlator(object):
                     elif p == 'c2': pg[i] = - f/3. * ct0 + ct2
                     elif p == 'c4': pg[i] = 3/35. * f**2 * ct0 - 6/7. * f * ct2 + ct4
                 # stochastic term
+                elif p == 'ce0': pg[i] = st[0] / self.c["nd"] # k^0 / nd mono
+                elif p == 'ce1': pg[i] = st[1] / self.c["km"]**2 / self.c["nd"] # k^2 / km^2 / nd mono
+                elif p == 'ce2': pg[i] = st[2] / self.c["km"]**2 / self.c["nd"] # k^2 / km^2 / nd quad
                 # MP #
-                if stl is not None:
-                    if p == 'Be1': # ce0 = Be1
-                        pg[i] = st[0] # k^0 / nd mono
-                    elif p == 'Be2': # ce1 = Be2 + ce2 / 2 , ce1  # k^2 / km^2 / nd mono
-                        pg[i] = st[1]
-                    elif p == 'ce2': # ce1 = Be2 + ce2 / 2 , ce2 k^2 / km^2 / nd quad
-                        pg[i] = st[2] + 0.5 * st[1] 
+                #if stl is not None:
+                #    if p == 'Be1': # ce0 = Be1
+                #        pg[i] = st[0] # k^0 / nd mono
+                #    elif p == 'Be2': # ce1 = Be2 + ce2 / 2 , ce1  # k^2 / km^2 / nd mono
+                #        pg[i] = st[1]
+                #    elif p == 'ce2': # ce1 = Be2 + ce2 / 2 , ce2 k^2 / km^2 / nd quad
+                #        pg[i] = st[2] + 0.5 * st[1] 
                 ######
                 # elif p == 'Be1': # ce0 = Be1
                 #     pg[i] = st[0] # k^0 / nd mono
@@ -517,7 +513,7 @@ class Correlator(object):
                 # elif p == 'ce2': # ce1 = Be2 + ce2 / 2 , ce2 k^2 / km^2 / nd quad
                 #     pg[i] = st[2] + 0.5 * st[1] 
                 # nnlo term
-                elif p == 'cr4': pg[i] = 0.25 * b1**2 * nnlo[0] / self.c["kr"]**4 # ~ 1/4 b1^2 k^4/kr^4 mu^4 P11
+                elif p == 'cr4': pg[i] = 0.25 * b1**2 * nnlo[0] / self.c["kr"]**4 # ~ 1/4 b1^2 k^4/kr^4 mu^4 pk_lin
                 elif p == 'cr6': pg[i] = 0.25 * b1 * nnlo[1] / self.c["kr"]**4    # ~ 1/4 b1 k^4/kr^4 mu^6 pk_lin
                 # nnlo term: config["eft_basis"] = 'eastcoast'
                 elif p == 'ct': pg[i] = - f**4 * (b1**2 * nnlo[0] + 2. * b1 * f * nnlo[1] + f**2 * nnlo[2]) # ~ k^4 mu^4 pk_lin
@@ -634,6 +630,7 @@ class Correlator(object):
             if "Pk" in self.c["output"]: return marg(bird.Ploopl, bird.Pctl, self.bias["b1"], bird.f, stl=bird.Pstl, nnlol=bird.Pnnlol, bq=bq)
             elif "Cf" in self.c["output"]: return marg(bird.Cloopl, bird.Cctl, self.bias["b1"], bird.f, stl=bird.Cstl, nnlol=bird.Cnnlol, bq=bq)
 
+        return marg_from_bird(self.bird, bias)
         def marg_from_bisp(bisp_quad=0):
             if bisp_quad == 0: return marg_bisp(self.bispectrum.Bctr1, self.bispectrum.Bctr2, self.bispectrum.Bstoch1, self.bispectrum.Bstoch2, b1=self.bias["Bb1"], b2=self.bias["Bb2"], b5=self.bias["Bb5"], f1=self.bird.f, nnlo=[self.bispectrum.Bnnlo1, self.bispectrum.Bnnlo2], real_space=real_space)
             elif bisp_quad == 1: return marg_bisp(self.bispectrum.Bctr1_002, self.bispectrum.Bctr2_002, self.bispectrum.Bstoch1_002, self.bispectrum.Bstoch2_002, b1=self.bias["Bb1"], b2=self.bias["Bb2"], b5=self.bias["Bb5"], f1=self.bird.f, nnlo=[self.bispectrum.Bnnlo1_002, self.bispectrum.Bnnlo2_002], real_space=real_space)
@@ -693,8 +690,10 @@ class Correlator(object):
             # GDA_Bisp
             if self.c["with_bisp"]:
                 if self.c["with_bin_bisp"]:
+                    #MM need to correct these commands to account the right AP effect
                     self.bispectrumnl = BispectrumNl(matrix_path=self.c["matrix_path"], matrix_path_quad=self.c["matrix_path_quad"], co=self.co, triangles=self.c["triangle_data"], with_AP=self.c["with_AP"], Om_AP=self.c["Omega_m_AP"], z_AP=self.c["z_AP"], tree_level=self.c["tree_level"], norm=self.c["bisp_norm"])
                 else:
+                    #MM need to correct these commands to account the right AP effect
                     self.bispectrumnl = BispectrumNl(matrix_path=self.c["matrix_path"], matrix_path_quad=self.c["matrix_path_quad"], co=self.co, triangles=self.c["triangle_data"], with_AP=self.c["with_AP"], Om_AP=self.c["Omega_m_AP"], z_AP=self.c["z_AP"], tree_level=self.c["tree_level"], norm=self.c["bisp_norm"])
                 if self.c["with_bisp_window"]:
                     self.co_highkmax = Common(Nl=2, kmax=0.7)  # I put back Nl=2 instead of Nl=0 to try to put some window in the quadrupole
@@ -731,7 +730,6 @@ class Correlator(object):
             raise Exception("Please provide a linear matter spectrum \'pk_lin\' and the corresponding \'kk\' with min(kk) < 1e-4 and max(kk) > 1.")
 
         if self.c["multipole"] == 0: self.cosmo["f"] = 0.
-
         elif not self.c["with_redshift_bin"] and self.cosmo["f"] is None:
             raise Exception("Please specify the growth rate \'f\'.")
         elif self.c["with_redshift_bin"] and (self.cosmo["Dz"] is None or self.cosmo["fz"] is None):
@@ -772,55 +770,59 @@ class Correlator(object):
 
         self.bias = self.cosmo["bias"]
 
-        self.bias["Bb1"] = self.bias["b1"] # this is because we put 'b1' in the config file for readability
         if "b" in self.c["output"]:
             if "westcoast" in self.c["eft_basis"]:
-                self.bias["Bb2"] = 2.**-.5 * (self.bias["c2"] + self.bias["c4"])
-                self.bias["Bb4"] = 2.**-.5 * (self.bias["c2"] - self.bias["c4"])
+                self.bias["b2"] = 2.**-.5 * (self.bias["c2"] + self.bias["c4"])
+                self.bias["b4"] = 2.**-.5 * (self.bias["c2"] - self.bias["c4"])
             elif "eastcoast" in self.c["eft_basis"]:
                 self.bias["b2"] = self.bias["b1"] + 7/2. * self.bias["bG2"]
                 self.bias["b3"] = self.bias["b1"] + 15. * self.bias["bG2"] + 6. * self.bias["bGamma3"]
                 self.bias["b4"] = 1/2. * self.bias["bt2"] - 7/2. * self.bias["bG2"]
         elif "m" in self.c["output"]: self.bias.update({"b1": 1., "b2": 1., "b3": 1., "b4": 0.})
+        #MM: this is still work in progres....
         # filling power spectrum EFT parameters from bispectrum EFT parameters
-        self.bias.update({'b1': self.bias['Bb1'], 'b2': self.bias['Bb2'], 'b3': self.bias['Bb3'] + 15 * self.bias['Bb8'], 'b4': self.bias['Bb5'], 
-            'cct': - self.bias['Bc1'], 'cr1': self.cosmo['f'] * self.bias['Bc2'] - 0.5 * self.cosmo['f']**2 * self.bias['Bc4'], 'cr2': - 0.5 * self.cosmo['f']**2 * self.bias['Bc3'],
-            'ce0': self.bias['Be1'], 'ce1': self.bias['Be2'] + 0.5 * self.bias['ce2'] })
+        #self.bias.update({'b1': self.bias['Bb1'], 'b2': self.bias['Bb2'], 'b3': self.bias['Bb3'] + 15 * self.bias['Bb8'], 'b4': self.bias['Bb5'], 
+        #    'cct': - self.bias['Bc1'], 'cr1': self.cosmo['f'] * self.bias['Bc2'] - 0.5 * self.cosmo['f']**2 * self.bias['Bc4'], 'cr2': - 0.5 * self.cosmo['f']**2 * self.bias['Bc3'],
+        #    'ce0': self.bias['Be1'], 'ce1': self.bias['Be2'] + 0.5 * self.bias['ce2'] })
 
-        if self.c["with_common_shot_noise_parameter_in_pk_and_bk"]: self.bias["Bd1"] = self.bias["Be1"]**2
+        #if self.c["with_common_shot_noise_parameter_in_pk_and_bk"]: self.bias["Bd1"] = self.bias["Be1"]**2
 
         # MP #
         # to link the bias parameters to mg_parameters for bootstrap (temporary solution)
-        if self.c["mg_model"]=="bootstrap":
-            self.cosmo["mg_parameters"].update({
-                "b1": self.bias["Bb1"],
-                "b2": self.bias["Bb2"],
-                "b4": self.bias["Bb5"],
-                "Bd1": self.bias["Bd1"],
-                "Bd2": self.bias["Bd2"],
-                "Bd3": self.bias["Bd3"]
-            })
+        #if self.c["mg_model"]=="bootstrap":
+        #    self.cosmo["mg_parameters"].update({
+        #        "b1": self.bias["Bb1"],
+        #        "b2": self.bias["Bb2"],
+        #        "b4": self.bias["Bb5"],
+        #        "Bd1": self.bias["Bd1"],
+        #        "Bd2": self.bias["Bd2"],
+        #        "Bd3": self.bias["Bd3"]
+        #    })
         ######
         # self.bias.update({'b1': 1., 'b2': 1., 'b3': 1., 'b4': 0., 'cct': 0., 'cr1': 0., 'cr2': 0., 'ce0': 0., 'ce1': 0., 'ce2': 0.})
 
         if self.c["multipole"] == 0: self.bias.update({"cr1": 0., "cr2": 0.})
 
     def __set_eft_parameters_list(self):
-        #MM: Here I'm modifying Pierre's notation in order to account for the bispectrum
+        #MM: Need to inclcude the bispectrum here, please be very carefull with the notation!!!
 
-        if self.c["with_bisp"]: 
-            self.gauss_eft_parameters_list = ['Bb%s' % i for i in [3, 4, 6, 7, 8, 9, 10, 11]] + ['Bc%s' % (i+1) for i in range(14)] + ['Bd1', 'Bd2', 'Bd3'] + ['Be%s' % (i+1) for i in range(12)] + ['ce2']
-            if self.c["with_bisp_nnlo"]: self.gauss_eft_parameters_list.extend(['Bnnlo1', 'Bnnlo2'])
-            if self.c["with_common_shot_noise_parameter_in_pk_and_bk"]: 
-                for p in ['Bd1', 'Be1']: self.gauss_eft_parameters_list.remove(p) # we remove both shot noise parameters from the Gaussian EFT parameter list since Bd1 = Be1^2 [this condition is enforced in __is_bias_conflict()] and we can't marginalize analytically over Be1 anymore
-        else:
-            self.gauss_eft_parameters_list = ['Bb3', 'Bc1', 'Bc2', 'Bc3', 'Bb8', 'Bc4']
-            if self.c["with_stoch"]: self.gauss_eft_parameters_list.extend(['Be1', 'Be2', 'ce2'])
-        if self.c["with_nnlo_counterterm"]: self.gauss_eft_parameters_list.extend(['cr4', 'cr6'])
+        if self.c["eft_basis"] in ["eftoflss", "westcoast"]:
+            self.gauss_eft_parameters_list = ['cct']
+            if self.c["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['cr1', 'cr2'])
+        elif self.c["eft_basis"] == "eastcoast":
+            self.gauss_eft_parameters_list = ['c0']
+            if self.c["multipole"] >= 2: self.gauss_eft_parameters_list.extend(['c2', 'c4'])
+        if self.c["with_stoch"]: self.gauss_eft_parameters_list.extend(['ce0', 'ce1', 'ce2'])
+        if self.c["with_nnlo_counterterm"]:
+            if self.c["eft_basis"] in ["eftoflss", "westcoast"]: self.gauss_eft_parameters_list.extend(['cr4', 'cr6'])
+            elif self.c["eft_basis"] == "eastcoast": self.gauss_eft_parameters_list.append('ct')
         self.eft_parameters_list = deepcopy(self.gauss_eft_parameters_list)
-        if self.c["eft_basis"] == "eftoflss": self.eft_parameters_list.extend(['b1', 'Bb2', 'Bb5'])
-        elif self.c["eft_basis"] == "westcoast": self.eft_parameters_list.extend(['b1', 'c2', 'c4']) 
-        if self.c["with_common_shot_noise_parameter_in_pk_and_bk"]: self.eft_parameters_list.append('Be1') # ... so we put back Be1 in the full EFT parameter list 
+        if "b" in self.c["output"]:
+            if self.c["eft_basis"] in ["eftoflss", "westcoast"]: self.gauss_eft_parameters_list.append('b3')
+            elif self.c["eft_basis"] == "eastcoast": self.gauss_eft_parameters_list.append('bGamma3')
+            if self.c["eft_basis"] == "eftoflss": self.eft_parameters_list.extend(['b1', 'b2', 'b3', 'b4'])
+            elif self.c["eft_basis"] == "westcoast": self.eft_parameters_list.extend(['b1', 'c2', 'b3', 'c4'])
+            elif self.c["eft_basis"] == "eastcoast": self.eft_parameters_list.extend(['b1', 'bt2', 'bG2', 'bGamma3'])
         if self.c["with_tidal_alignments"]: self.eft_parameters_list.append('bq')
 
     def __read_config(self, config_dict):

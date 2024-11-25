@@ -87,7 +87,7 @@ class Bird(object):
 
         # MP #
         # if not with_bias:
-        if not with_bias or with_bias:
+        if not with_bias or (self.co.model == 'bootstrap'):
         ######
             self.Ploopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Nk))
             self.P11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Nk))
@@ -442,6 +442,7 @@ class Bird(object):
                 self.bct = np.array([b1 * dct, b1 * dr1, b1 * dr2, f * dct, f * dr1, f * dr2, cct, cr1, cr2, f * cct, f * cr1, f * cr2])
                 if self.co.Nloop == 5: self.bloop = np.array([1., b1, b2, b3, b4])
 
+
     def setPs(self, bs=None, setfull=True):
         """ For option: which='full'. Given an array of EFT parameters, multiplies them accordingly to the power spectrum multipole terms and adds the resulting terms together per loop order
 
@@ -486,7 +487,8 @@ class Bird(object):
         self.setPs(setfull=setfull)
         self.setCf(setfull=setfull)
         # MP #
-        self.setPsCfl()
+        if self.co.model == 'bootstrap':
+            self.setPsCfl()
         ######
 
     def setfullPs(self):
@@ -937,16 +939,16 @@ class Bird(object):
         if Q is None: Q = self.Q
 
         # MP #
-        # if self.with_bias:
-        #     self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
-        # else:
-        #     self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
-        #     self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
-        #     self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
-        self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
-        self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
-        self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
-        self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
+        if self.with_bias or self.co.model == 'bootstrap':
+            self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
+        else:
+            self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
+            self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
+            self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
+        #self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
+        #self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
+        #self.fullIRPsct = np.einsum('lpn,pnk,pi->lik', Q[1], self.IRPsct, self.co.lct)
+        #self.fullIRPsloop = np.einsum('lpn,pink->lik', Q[1], self.IRPsloop)
         ######
 
     def setresumPs(self, setfull=True):
