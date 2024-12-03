@@ -1,19 +1,19 @@
 import os
+import sys
 import numpy as np
 from copy import deepcopy
-import sys
 from scipy.interpolate import interp1d
 from scipy.fftpack import dst
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from nnlo import NNLO_higher_derivative, NNLO_counterterm
-from resum import Resum
-from projection import Projection
-from greenfunction import GreenFunction
-from fourier import FourierTransform
-from matching import Matching
+from pybird.common import Common, co
+from pybird.bird import Bird
+from pybird.nonlinear import NonLinear
+from pybird.nnlo import NNLO_higher_derivative, NNLO_counterterm
+from pybird.resum import Resum
+from pybird.projection import Projection
+from pybird.greenfunction import GreenFunction
+from pybird.fourier import FourierTransform
+from pybird.matching import Matching
 ## MP ##
 # from bispectrum_nl import BispectrumNl
 #from bispectrum_nl_quad import BispectrumNl
