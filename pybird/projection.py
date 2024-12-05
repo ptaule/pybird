@@ -173,17 +173,11 @@ class Projection(object):
 
             if bird.with_bias:
                 bird.fullPs = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.fullPs, kp, arrayLegendremup)
-            # MP #
-            bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
-            bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
-            bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
-            if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)
-            # else:
-            #    bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
-            #    bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
-            #    bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
-            #    if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
-            ######
+            else:
+                bird.P11l = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.P11l, kp, arrayLegendremup)
+                bird.Pctl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pctl, kp, arrayLegendremup)
+                bird.Ploopl = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Ploopl, kp, arrayLegendremup)
+                if bird.with_nnlo_counterterm: bird.Pnnlol = 1. / (qperp**2 * qpar) * self.integrAP(self.co.k, bird.Pnnlol, kp, arrayLegendremup)      
 
     def integrWindow(self, P):
         """
@@ -277,6 +271,7 @@ class Projection(object):
             bird.P11l += self.dPcorr(self.co.k, self.co.k, bird.P11l, many=True)
             bird.Pctl += self.dPcorr(self.co.k, self.co.k, bird.Pctl, many=True)
             bird.Ploopl += self.dPcorr(self.co.k, self.co.k, bird.Ploopl, many=True)
+            # bird.Pnnlol += self.dPcorr(self.co.k, self.co.k, bird.Pnnlol, many=True)
 
     def loadBinning(self, xout, binsize):
         """
@@ -366,7 +361,7 @@ class Projection(object):
                 bird.Ploopl = self.integrWedges(bird.Ploopl)
                 if bird.with_stoch: bird.Pstl = self.integrWedges(bird.Pstl)
                 if bird.with_nnlo_counterterm: bird.Pnnlol = self.integrWedges(bird.Pnnlol)
-
+    
     def Wedges_external(self, P):
         return self.integrWedges(P, many=False)
 
@@ -467,4 +462,8 @@ class Projection(object):
             bird.C11l = integration(tlin, bird.C11l)
             bird.Cctl = integration(tct, bird.Cctl)
             bird.Cloopl = integration(tloop, bird.Cloopl)
+
+        
+
+            
 
