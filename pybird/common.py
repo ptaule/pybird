@@ -45,7 +45,7 @@ class Common(object):
         exact_time=False,
         quintessence=False,
         Omega_rc=None,
-        #fR0 = None,
+        fR0 = None,
         background='lcdm',
         model='lcdm',
         timedep='propto_omega',
@@ -68,7 +68,7 @@ class Common(object):
         self.model = model
         self.timedep = timedep
         self.Omega_rc = Omega_rc
-        #self.fR0 = fR0
+        self.fR0 = fR0
         # if self.quintessence: self.exact_time = True
         self.with_tidal_alignments = with_tidal_alignments
         self.nonequaltime = nonequaltime

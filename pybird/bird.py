@@ -3,8 +3,8 @@ import numpy as np
 from numpy import pi, cos, sin, log, exp, sqrt, trapz
 from scipy.interpolate import interp1d
 
-from common import co, mu
-from greenfunction import GreenFunction
+from pybird.common import co, mu
+from pybird.greenfunction import GreenFunction
 
 class Bird(object):
     """

@@ -1,19 +1,19 @@
 import os
+import sys
 import numpy as np
 from copy import deepcopy
-import sys
 from scipy.interpolate import interp1d
 from scipy.fftpack import dst
 
-from common import Common, co
-from bird import Bird
-from nonlinear import NonLinear
-from nnlo import NNLO_higher_derivative, NNLO_counterterm
-from resum import Resum
-from projection import Projection
-from greenfunction import GreenFunction
-from fourier import FourierTransform
-from matching import Matching
+from pybird.common import Common, co
+from pybird.bird import Bird
+from pybird.nonlinear import NonLinear
+from pybird.nnlo import NNLO_higher_derivative, NNLO_counterterm
+from pybird.resum import Resum
+from pybird.projection import Projection
+from pybird.greenfunction import GreenFunction
+from pybird.fourier import FourierTransform
+from pybird.matching import Matching
 ## MP ##
 # from bispectrum_nl import BispectrumNl
 #from bispectrum_nl_quad import BispectrumNl
@@ -889,11 +889,11 @@ class Correlator(object):
                 if self.c["with_redshift_bin"]: zmax = max(self.c["redshift_bin_zz"])
                 else: zmax = self.c["z"]
 
-                if self.config["expansion_model"] == 'w0wa':
+                if self.c["expansion_model"] == 'w0wa':
                     cosmo_dict_local["Omega_Lambda"] = 0.#1 - (cosmo_dict_local["omega_b"] + cosmo_dict_local["omega_cdm"])/(cosmo_dict_local["h"]**2)
 
                 # MP #
-                if self.config["mg_model"]=="bootstrap":
+                if self.c["mg_model"]=="bootstrap":
                     del cosmo_dict_local["mg_parameters"]
                 ######
 
@@ -919,7 +919,7 @@ class Correlator(object):
                 cosmo["Omega0_m"] = M.Omega0_m()
                 try: cosmo["w0_fld"] = cosmo_dict["w0_fld"], cosmo["wa_fld"] = cosmo_dict["wa_fld"]
                 except: pass
-                if self.config["mg_model"] == "EFTofDE":
+                if self.c["mg_model"] == "EFTofDE":
                     try: cosmo["alpha_B0"] = cosmo_dict["alpha_B0"]
                     except: pass
                     try: cosmo["alpha_T0"] = cosmo_dict["alpha_T0"]
@@ -928,7 +928,7 @@ class Correlator(object):
                     except: pass
                     try: cosmo["eta"] = cosmo_dict["eta"]
                     except: pass
-                if self.config["expansion_model"] == "w0wa":
+                if self.c["expansion_model"] == "w0wa":
                     try: 
                         cosmo["w0_fld"] = cosmo_dict["w0_fld"]
                         cosmo["wa_fld"] = cosmo_dict["wa_fld"]

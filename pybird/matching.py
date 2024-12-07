@@ -1,5 +1,6 @@
 import numpy as np
-from common import co
+from pybird.common import co
+
 
 def pad_along_axis(array, target_length, axis=0):
     pad_size = target_length - array.shape[axis]
