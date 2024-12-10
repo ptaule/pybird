@@ -1024,10 +1024,6 @@ class Correlator(object):
                 self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
                                         background = back, model = mod, timedep = timed)
-                Dp = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
-                Dm = self.GF.Dminus(scale_factor(self.c["z"]))/self.GF.Dminus(scale_factor(zm))
-                D_lcdm = self.GF.D_LCDM(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
-                cosmo["pk_lin"] *= Dp**2 / D_lcdm**2# D_class**2
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 if self.c["skycut"] == 1:
                         if self.c["multipole"] != 0: cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
