@@ -10,6 +10,12 @@ class eftboss(Likelihood):
 
         Likelihood.__init__(self, path, data, command_line)
         self.c = yaml.full_load(open(os.path.join(self.data_directory, self.config_file), 'r'))
+        #MM: add this for EFTofDE
+        if self.c['mg_model'] == 'EFTofDE':
+            try: self.c['expansion_model'] = data.cosmo_arguments['expansion_model']
+            except: self.c['expansion_model'] = 'lcdm'
+            try: self.c['gravity_model'] = data.cosmo_arguments['gravity_model']
+            except: self.c['gravity_model'] = 'quasi_static_alphas_power_law'
         self.L = Likelihood_bird(self.c)
         self.need_cosmo_arguments(data, self.L.class_settings)
         self.first_evaluation = True
