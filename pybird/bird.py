@@ -177,6 +177,7 @@ class Bird(object):
         self.Pin = cosmo["pk_lin"]
         if self.co.model == 'bootstrap':
             # MP #
+            # MM: to be adjusted!!!!
             self.epsD = cosmo["mg_parameters"]["epsD"]
             self.epsf = cosmo["mg_parameters"]["epsf"]
             self.epsdg = cosmo["mg_parameters"]["epsdg"]
@@ -218,6 +219,14 @@ class Bird(object):
 
             self.Omega0_m = cosmo["Omega0_m"]
             self.z = cosmo["z"]
+            if self.co.model == 'nDGP':
+                try: self.Om_rc = self.co.Omega_rc
+                except: raise Exception("You asked for MG model nDGP, but didn't specify the value of Omega_rc in the .yaml file")
+            else: self.Om_rc = None
+            if self.co.model == 'fR':
+                try: self.fR0 = self.co.fR0
+                except: raise Exception("You asked for MG model f(R), but didn't specify the value of f_{R,0} in the .yaml file")
+            else: self.fR0 = None
             if self.co.model == "EFTofDE":
                 try: self.alphaB = cosmo["alpha_B0"]
                 except: self.alphaB = 0.
@@ -226,7 +235,11 @@ class Bird(object):
                 try: self.alphaM = cosmo["alpha_M0"]
                 except: self.alphaM = 0.
                 try: self.eta = cosmo["eta"]
-                except: pass
+                except: self.eta = None
+                try: self.w0 = cosmo["w0_fld"]
+                except: self.w0 = - 1
+                try: self.wa = cosmo["wa_fld"]
+                except: self.wa = - 1
             else: 
                 self.alphaB = None
                 self.alphaT = None
@@ -236,8 +249,8 @@ class Bird(object):
             self.GF = GreenFunction(self.Omega0_m,
                                     w=self.w0,
                                     wa=self.wa,
-                                    Omega_rc=self.co.Omega_rc,
-                                    fR0=self.co.fR0,
+                                    Omega_rc=self.Om_rc,
+                                    fR0=self.fR0,
                                     background=self.co.background,
                                     model = self.co.model,
                                     timedep=self.co.timedep,
@@ -311,9 +324,10 @@ class Bird(object):
         """
         #***
         if self.co.model == 'bootstrap':
-        # MP #
-            # self.epsf = bias["epsf"]
-            #self.D = bias["D"]
+            ##MM: TRYING TO PUT IT BACK AS I DID IN THE TECHNION CLUSTER
+            self.epsf = bias["epsf"]
+            self.epsD = bias["epsD"]
+
             # f = (1 + self.epsf)*self.f
             # self.epsD = bias["epsD"]
             self.f = (1 + self.epsf)*self.f 
@@ -330,9 +344,10 @@ class Bird(object):
             #bootstrap functions
             if self.co.model == 'bootstrap':
                 #********
-                # self.epsag = bias["epsag"] # this is \epsilon_{a_\gamma}
-                # self.epsdg = bias["epsdg"] # this is \epsilon_{d_{\gamma}}
-                # self.epsdga = bias["epsdga"] # this is \epsilon_{d_{\gamma a}}
+                ##MM: TRYING TO PUT IT BACK AS I DID IN THE TECHNION CLUSTER
+                self.epsag = bias["epsag"] # this is \epsilon_{a_\gamma}
+                self.epsdg = bias["epsdg"] # this is \epsilon_{d_{\gamma}}
+                self.epsdga = bias["epsdga"] # this is \epsilon_{d_{\gamma a}}
                 self.agLCDM = 2.*self.Y1LCDM + 10./7.
                 self.dgLCDM = 2*self.G1tLCDM
                 self.dgaLCDM = 2.*self.Y1LCDM - 2*self.V12tLCDM + 3./7.
@@ -358,19 +373,23 @@ class Bird(object):
             Y1 = self.Y1
             G1t = self.G1t
             V12t = self.V12t
+        ##MM: putting back the f(R) implementation we made with Dennis
+        id = 1.
+        if(self.co.model == 'fR'):
+            id = np.ones(f.shape[0])
 
-        b1 = bias["b1"]
-        b2 = bias["b2"]
-        b3 = bias["b3"]
-        b4 = bias["b4"]
+        b1 = bias["b1"] * id
+        b2 = bias["b2"] * id
+        b3 = bias["b3"] * id
+        b4 = bias["b4"] * id
         if self.eft_basis in ["eftoflss", "westcoast"]:
-            b5 = bias["cct"] / self.co.km**2
-            b6 = bias["cr1"] / self.co.kr**2
-            b7 = bias["cr2"] / self.co.kr**2
+            b5 = bias["cct"] * id / self.co.km**2
+            b6 = bias["cr1"] * id / self.co.kr**2
+            b7 = bias["cr2"] * id / self.co.kr**2
         elif self.eft_basis == 'eastcoast': # inversion of (2.23) of 2004.10607
-            ct0 = bias["c0"] - f/3. * bias["c2"] + 3/35. * f**2 * bias["c4"]
-            ct2 = bias["c2"] - 6/7. * f * bias["c4"]
-            ct4 = bias["c4"]
+            ct0 = (bias["c0"] - f/3. * bias["c2"] + 3/35. * f**2 * bias["c4"])* id 
+            ct2 = (bias["c2"] - 6/7. * f * bias["c4"])* id 
+            ct4 = bias["c4"]* id 
 
         if self.with_stoch:
             self.bst = np.array([bias["ce0"], bias["ce1"] / self.co.km**2, bias["ce2"] / self.co.km**2]) / self.co.nd
@@ -413,7 +432,7 @@ class Bird(object):
                 else: self.b11 = np.array([b1**2, 2. * b1 * f, f**2])
                 if self.eft_basis in ["eftoflss", "westcoast"]: self.bct = np.array([2. * b1 * b5, 2. * b1 * b6, 2. * b1 * b7, 2. * f * b5, 2. * f * b6, 2. * f * b7])
                 elif self.eft_basis == "eastcoast": self.bct = - 2. * np.array([ct0, f * ct2, f**2 * ct4]) # these are not divided by km^2 or kr^2 according to eastcoast definition; the prior is adjusted accordingly
-                if self.co.Nloop == 12: self.bloop = np.array([1., b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])
+                if self.co.Nloop == 12: self.bloop = np.array([id, b1, b2, b3, b4, b1 * b1, b1 * b2, b1 * b3, b1 * b4, b2 * b2, b2 * b4, b4 * b4])# MM: id is 1 or id = np.ones(len(f)) depending on scale dependence
                 elif self.co.Nloop == 22: self.bloop = np.array([f**2, f**3, f**4, b1*f, b1*f**2, b1*f**3, b2*f, b2*f**2, b3*f, b4*f, b4*f**2, b1**2, b1**2*f, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
                 elif self.co.Nloop == 35: self.bloop = np.array([f**2, f**2*G1t, f**2*G1t**2, f**2*Y1, f**2*V12t, f**3, f**3*G1t, f**4, b1*f, b1*f*G1t, b1*f*Y1, b1*f*V12t, b1*f**2, b1*f**2*G1t, b1*f**3, b2*f, b2*f*G1t, b2*f**2, b3*f, b4*f, b4*f*G1t, b4*f**2, b1**2, b1**2*Y1, b1**2*f, b1**2*f*G1t, b1**2*f**2, b1*b2, b1*b2*f, b1*b3, b1*b4, b1*b4*f, b2**2, b2*b4, b4**2])
                 elif self.co.Nloop == self.co.N22+self.co.N13: self.bloop = np.array([
@@ -452,12 +471,21 @@ class Bird(object):
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
         if bs is not None: self.setBias(bs)
-        self.Ps[0] = np.einsum('l,x->lx', self.b11, self.P11)
-        self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
+        if self.co.model == 'fR':
+            self.Ps[0] = np.einsum('lx,x->lx', self.b11, self.P11)
+            self.Ps[1] = np.einsum('lbx,bx->lx', self.b22, self.P22)
+        else:
+            self.Ps[0] = np.einsum('l,x->lx', self.b11, self.P11)
+            self.Ps[1] = np.einsum('lb,bx->lx', self.b22, self.P22)
         for l in range(self.co.Nl): self.Ps[1, l] -= self.Ps[1, l, 0]
-        self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
-        if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-        if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('l,x->lx', self.cnnlo, self.Pnnlo)
+        if self.co.model == 'fR':
+            self.Ps[1] += np.einsum('lbx,bx->lx', self.b13, self.P13) + np.einsum('lx,x,x->lx', self.bct, self.co.k**2, self.P11)
+            if self.with_stoch: self.Ps[1] += np.einsum('bx,lbx->lx', self.bst, self.Pstl)
+            if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('lbx,x->lx', self.cnnlo, self.Pnnlo)
+        else:    
+            self.Ps[1] += np.einsum('lb,bx->lx', self.b13, self.P13) + np.einsum('l,x,x->lx', self.bct, self.co.k**2, self.P11)
+            if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+            if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('l,x->lx', self.cnnlo, self.Pnnlo)
         if setfull: self.setfullPs()
 
     def setCf(self, bs=None, setfull=True):
@@ -487,8 +515,8 @@ class Bird(object):
         self.setPs(setfull=setfull)
         self.setCf(setfull=setfull)
         # MP #
-        if self.co.model == 'bootstrap':
-            self.setPsCfl()
+        #if self.co.model == 'bootstrap':
+        #    self.setPsCfl()
         ######
 
     def setfullPs(self):
@@ -548,18 +576,22 @@ class Bird(object):
                     self.Ploopl[:, 10] = self.P22l[:, 4]  # *b2*b4
                     self.Ploopl[:, 11] = self.P22l[:, 5]  # *b4*b4
 
-                    self.Cloopl[:, 0] = G1**2 * f1**2 * self.C22l[:, 20] + G1 * f1**3 * self.C22l[:, 23] + G1 * f1**3 * self.C22l[:, 24] + f1**4 * self.C22l[:, 25] + f1**4 * self.C22l[:, 26] + f1**4 * self.C22l[:, 27] + \
-                        G1 * G1t * f1**2 * self.C22l[:, 32] + G1t * f1**3 * self.C22l[:, 33] + G1t * f1**3 * self.C22l[:, 34] + G1t**2 * f1**2 * self.C22l[:, 35] + \
-                        G1**2 * f1**2 * self.C13l[:, 4] + Y1 * f1**2 * self.C13l[:, 7] + G1t * f1**3 * self.C13l[:, 11] + G1t * f1**3 * self.C13l[:, 12] + V12t * f1**2 * self.C13l[:, 14] # *1
-                    self.Cloopl[:, 1] = G1**2 * f1 * self.C22l[:, 9] + G1 * f1**2 * self.C22l[:, 14] + G1 * f1**2 * self.C22l[:, 15] + f1**3 * self.C22l[:, 21] + f1**3 * self.C22l[:, 22] + G1 * G1t * f1 * self.C22l[:, 28] + G1t * f1**2 * self.C22l[:, 31] + \
-                        G1**2 * f1 * self.C13l[:, 2] + Y1 * f1 * self.C13l[:, 6] + G1t * f1**2 * self.C13l[:, 9] + G1t * f1**2 * self.C13l[:, 10] + V12t * f1 * self.C13l[:, 13] # *b1
-                    self.Cloopl[:, 2] = G1 * f1 * self.C22l[:, 10] + f1**2 * self.C22l[:, 16] + f1**2 * self.C22l[:, 17] + G1t * f1 * self.C22l[:, 29] # *b2
-                    self.Cloopl[:, 3] = f1 * self.C13l[:, 3] # *b3
-                    self.Cloopl[:, 4] = G1 * f1 * self.C22l[:, 11] + f1**2 * self.C22l[:, 18] + f1**2 * self.C22l[:, 19] + G1t * f1 * self.C22l[:, 30] # *b4
-                    self.Cloopl[:, 5] = G1**2 * self.C22l[:, 0] + G1 * f1 * self.C22l[:, 6] + f1**2 * self.C22l[:, 12] + f1**2 * self.C22l[:, 13] + G1**2 * self.C13l[:, 0] + Y1 * self.C13l[:, 5] + G1t * f1 * self.C13l[:, 8]  # *b1*b1
-                    self.Cloopl[:, 6] = G1 * self.C22l[:, 1] + f1 * self.C22l[:, 7]  # *b1*b2
+                    if self.co.model == 'fR':
+                        f2 = self.f[0]
+                    else:
+                        f2 = f1
+                    self.Cloopl[:, 0] = G1**2 * f2**2 * self.C22l[:, 20] + G1 * f2**3 * self.C22l[:, 23] + G1 * f2**3 * self.C22l[:, 24] + f2**4 * self.C22l[:, 25] + f2**4 * self.C22l[:, 26] + f2**4 * self.C22l[:, 27] + \
+                        G1 * G1t * f2**2 * self.C22l[:, 32] + G1t * f2**3 * self.C22l[:, 33] + G1t * f2**3 * self.C22l[:, 34] + G1t**2 * f2**2 * self.C22l[:, 35] + \
+                        G1**2 * f2**2 * self.C13l[:, 4] + Y1 * f2**2 * self.C13l[:, 7] + G1t * f2**3 * self.C13l[:, 11] + G1t * f2**3 * self.C13l[:, 12] + V12t * f2**2 * self.C13l[:, 14] # *1
+                    self.Cloopl[:, 1] = G1**2 * f2 * self.C22l[:, 9] + G1 * f2**2 * self.C22l[:, 14] + G1 * f2**2 * self.C22l[:, 15] + f2**3 * self.C22l[:, 21] + f2**3 * self.C22l[:, 22] + G1 * G1t * f2 * self.C22l[:, 28] + G1t * f2**2 * self.C22l[:, 31] + \
+                        G1**2 * f2 * self.C13l[:, 2] + Y1 * f2 * self.C13l[:, 6] + G1t * f2**2 * self.C13l[:, 9] + G1t * f2**2 * self.C13l[:, 10] + V12t * f2 * self.C13l[:, 13] # *b1
+                    self.Cloopl[:, 2] = G1 * f2 * self.C22l[:, 10] + f2**2 * self.C22l[:, 16] + f2**2 * self.C22l[:, 17] + G1t * f2 * self.C22l[:, 29] # *b2
+                    self.Cloopl[:, 3] = f2 * self.C13l[:, 3] # *b3
+                    self.Cloopl[:, 4] = G1 * f2 * self.C22l[:, 11] + f2**2 * self.C22l[:, 18] + f2**2 * self.C22l[:, 19] + G1t * f2 * self.C22l[:, 30] # *b4
+                    self.Cloopl[:, 5] = G1**2 * self.C22l[:, 0] + G1 * f2 * self.C22l[:, 6] + f2**2 * self.C22l[:, 12] + f2**2 * self.C22l[:, 13] + G1**2 * self.C13l[:, 0] + Y1 * self.C13l[:, 5] + G1t * f2 * self.C13l[:, 8]  # *b1*b1
+                    self.Cloopl[:, 6] = G1 * self.C22l[:, 1] + f2 * self.C22l[:, 7]  # *b1*b2
                     self.Cloopl[:, 7] = self.C13l[:, 1]  # *b1*b3
-                    self.Cloopl[:, 8] = G1 * self.C22l[:, 2] + f1 * self.C22l[:, 8]  # *b1*b4
+                    self.Cloopl[:, 8] = G1 * self.C22l[:, 2] + f2 * self.C22l[:, 8]  # *b1*b4
                     self.Cloopl[:, 9] = self.C22l[:, 3]  # *b2*b2
                     self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
@@ -664,6 +696,10 @@ class Bird(object):
             else:                       # config["with_exact_time"] == False
                 if self.co.Nloop == 12: # config["with_time"] == True
                     f1 = self.f
+                    if self.co.model == 'fR':
+                        f2 = self.f[0]
+                    else:
+                        f2 = f1
 
                     self.Ploopl[:, 0] = f1**2 * self.P22l[:, 20] + f1**3 * self.P22l[:, 23] + f1**3 * self.P22l[:, 24] + f1**4 * self.P22l[:, 25] + f1**4 * self.P22l[:, 26] + f1**4 * self.P22l[:, 27] + f1**2 * self.P13l[:, 7] + f1**3 * self.P13l[:, 8] + f1**3 * self.P13l[:, 9]  # *1
                     self.Ploopl[:, 1] = f1 * self.P22l[:, 9] + f1**2 * self.P22l[:, 14] + f1**2 * self.P22l[:, 15] + f1**3 * self.P22l[:, 21] + f1**3 * self.P22l[:, 22] + f1 * self.P13l[:, 3] + f1**2 * self.P13l[:, 5] + f1**2 * self.P13l[:, 6]  # *b1
@@ -678,15 +714,15 @@ class Bird(object):
                     self.Ploopl[:, 10] = self.P22l[:, 4]  # *b2*b4
                     self.Ploopl[:, 11] = self.P22l[:, 5]  # *b4*b4
 
-                    self.Cloopl[:, 0] = f1**2 * self.C22l[:, 20] + f1**3 * self.C22l[:, 23] + f1**3 * self.C22l[:, 24] + f1**4 * self.C22l[:, 25] + f1**4 * self.C22l[:, 26] + f1**4 * self.C22l[:, 27] + f1**2 * self.C13l[:, 7] + f1**3 * self.C13l[:, 8] + f1**3 * self.C13l[:, 9]  # *1
-                    self.Cloopl[:, 1] = f1 * self.C22l[:, 9] + f1**2 * self.C22l[:, 14] + f1**2 * self.C22l[:, 15] + f1**3 * self.C22l[:, 21] + f1**3 * self.C22l[:, 22] + f1 * self.C13l[:, 3] + f1**2 * self.C13l[:, 5] + f1**2 * self.C13l[:, 6]  # *b1
-                    self.Cloopl[:, 2] = f1 * self.C22l[:, 10] + f1**2 * self.C22l[:, 16] + f1**2 * self.C22l[:, 17]  # *b2
-                    self.Cloopl[:, 3] = f1 * self.C13l[:, 4]  # *b3
-                    self.Cloopl[:, 4] = f1 * self.C22l[:, 11] + f1**2 * self.C22l[:, 18] + f1**2 * self.C22l[:, 19]  # *b4
-                    self.Cloopl[:, 5] = self.C22l[:, 0] + f1 * self.C22l[:, 6] + f1**2 * self.C22l[:, 12] + f1**2 * self.C22l[:, 13] + self.C13l[:, 0] + f1 * self.C13l[:, 2]  # *b1*b1
-                    self.Cloopl[:, 6] = self.C22l[:, 1] + f1 * self.C22l[:, 7]  # *b1*b2
+                    self.Cloopl[:, 0] = f2**2 * self.C22l[:, 20] + f2**3 * self.C22l[:, 23] + f2**3 * self.C22l[:, 24] + f2**4 * self.C22l[:, 25] + f2**4 * self.C22l[:, 26] + f2**4 * self.C22l[:, 27] + f2**2 * self.C13l[:, 7] + f2**3 * self.C13l[:, 8] + f2**3 * self.C13l[:, 9]  # *1
+                    self.Cloopl[:, 1] = f2 * self.C22l[:, 9] + f2**2 * self.C22l[:, 14] + f2**2 * self.C22l[:, 15] + f2**3 * self.C22l[:, 21] + f2**3 * self.C22l[:, 22] + f2 * self.C13l[:, 3] + f2**2 * self.C13l[:, 5] + f2**2 * self.C13l[:, 6]  # *b1
+                    self.Cloopl[:, 2] = f2 * self.C22l[:, 10] + f2**2 * self.C22l[:, 16] + f2**2 * self.C22l[:, 17]  # *b2
+                    self.Cloopl[:, 3] = f2 * self.C13l[:, 4]  # *b3
+                    self.Cloopl[:, 4] = f2 * self.C22l[:, 11] + f2**2 * self.C22l[:, 18] + f2**2 * self.C22l[:, 19]  # *b4
+                    self.Cloopl[:, 5] = self.C22l[:, 0] + f2 * self.C22l[:, 6] + f2**2 * self.C22l[:, 12] + f2**2 * self.C22l[:, 13] + self.C13l[:, 0] + f2 * self.C13l[:, 2]  # *b1*b1
+                    self.Cloopl[:, 6] = self.C22l[:, 1] + f2 * self.C22l[:, 7]  # *b1*b2
                     self.Cloopl[:, 7] = self.C13l[:, 1]  # *b1*b3
-                    self.Cloopl[:, 8] = self.C22l[:, 2] + f1 * self.C22l[:, 8]  # *b1*b4
+                    self.Cloopl[:, 8] = self.C22l[:, 2] + f2 * self.C22l[:, 8]  # *b1*b4
                     self.Cloopl[:, 9] = self.C22l[:, 3]  # *b2*b2
                     self.Cloopl[:, 10] = self.C22l[:, 4]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 5]  # *b4*b4
@@ -775,6 +811,10 @@ class Bird(object):
 
                 elif self.co.Nloop == 18: # config["with_tidal_alignements"] = True
                     f1 = self.f
+                    if self.co.model == 'fR':
+                        f2 = self.f[0]
+                    else:
+                        f2 = f1
 
                     self.Ploopl[:, 0] = f1**2 * self.P22l[:, 36] + f1**3 * self.P22l[:, 39] + f1**3 * self.P22l[:, 40] + f1**4 * self.P22l[:, 41] + f1**4 * self.P22l[:, 42] + f1**4 * self.P22l[:, 43] + f1**2 * self.P13l[:, 21] + f1**3 * self.P13l[:, 22] + f1**3 * self.P13l[:, 23]  # *1
                     self.Ploopl[:, 1] = f1 * self.P22l[:, 20] + f1**2 * self.P22l[:, 27] + f1**2 * self.P22l[:, 28] + f1**3 * self.P22l[:, 37] + f1**3 * self.P22l[:, 38] + f1 * self.P13l[:, 12] + f1**2 * self.P13l[:, 16] + f1**2 * self.P13l[:, 17]  # *b1
@@ -796,27 +836,27 @@ class Bird(object):
                     self.Ploopl[:, 16] = self.P13l[:, 1] + self.P13l[:, 7] # *bq*b3
                     self.Ploopl[:, 17] = self.P22l[:, 2] + self.P22l[:, 13] # *bq*b4
 
-                    self.Cloopl[:, 0] = f1**2 * self.C22l[:, 36] + f1**3 * self.C22l[:, 39] + f1**3 * self.C22l[:, 40] + f1**4 * self.C22l[:, 41] + f1**4 * self.C22l[:, 42] + f1**4 * self.C22l[:, 43] + f1**2 * self.C13l[:, 21] + f1**3 * self.C13l[:, 22] + f1**3 * self.C13l[:, 23]  # *1
-                    self.Cloopl[:, 1] = f1 * self.C22l[:, 20] + f1**2 * self.C22l[:, 27] + f1**2 * self.C22l[:, 28] + f1**3 * self.C22l[:, 37] + f1**3 * self.C22l[:, 38] + f1 * self.C13l[:, 12] + f1**2 * self.C13l[:, 16] + f1**2 * self.C13l[:, 17]  # *b1
-                    self.Cloopl[:, 2] = f1 * self.C22l[:, 21] + f1**2 * self.C22l[:, 29] + f1**2 * self.C22l[:, 30]  # *b2
-                    self.Cloopl[:, 3] = f1 * self.C13l[:, 13]  # *b3
-                    self.Cloopl[:, 4] = f1 * self.C22l[:, 22] + f1**2 * self.C22l[:, 31] + f1**2 * self.C22l[:, 32]  # *b4
-                    self.Cloopl[:, 5] = self.C22l[:, 5] + f1 * self.C22l[:, 15] + f1**2 * self.C22l[:, 25] + f1**2 * self.C22l[:, 26] + self.C13l[:, 4] + f1 * self.C13l[:, 9]  # *b1*b1
-                    self.Cloopl[:, 6] = self.C22l[:, 6] + f1 * self.C22l[:, 16]  # *b1*b2
+                    self.Cloopl[:, 0] = f2**2 * self.C22l[:, 36] + f2**3 * self.C22l[:, 39] + f2**3 * self.C22l[:, 40] + f2**4 * self.C22l[:, 41] + f2**4 * self.C22l[:, 42] + f2**4 * self.C22l[:, 43] + f2**2 * self.C13l[:, 21] + f2**3 * self.C13l[:, 22] + f2**3 * self.C13l[:, 23]  # *1
+                    self.Cloopl[:, 1] = f2 * self.C22l[:, 20] + f2**2 * self.C22l[:, 27] + f2**2 * self.C22l[:, 28] + f2**3 * self.C22l[:, 37] + f2**3 * self.C22l[:, 38] + f2 * self.C13l[:, 12] + f2**2 * self.C13l[:, 16] + f2**2 * self.C13l[:, 17]  # *b1
+                    self.Cloopl[:, 2] = f2 * self.C22l[:, 21] + f2**2 * self.C22l[:, 29] + f2**2 * self.C22l[:, 30]  # *b2
+                    self.Cloopl[:, 3] = f2 * self.C13l[:, 13]  # *b3
+                    self.Cloopl[:, 4] = f2 * self.C22l[:, 22] + f2**2 * self.C22l[:, 31] + f2**2 * self.C22l[:, 32]  # *b4
+                    self.Cloopl[:, 5] = self.C22l[:, 5] + f2 * self.C22l[:, 15] + f2**2 * self.C22l[:, 25] + f2**2 * self.C22l[:, 26] + self.C13l[:, 4] + f2 * self.C13l[:, 9]  # *b1*b1
+                    self.Cloopl[:, 6] = self.C22l[:, 6] + f2 * self.C22l[:, 16]  # *b1*b2
                     self.Cloopl[:, 7] = self.C13l[:, 5]  # *b1*b3
-                    self.Cloopl[:, 8] = self.C22l[:, 7] + f1 * self.C22l[:, 17]  # *b1*b4
+                    self.Cloopl[:, 8] = self.C22l[:, 7] + f2 * self.C22l[:, 17]  # *b1*b4
                     self.Cloopl[:, 9] = self.C22l[:, 9]  # *b2*b2
                     self.Cloopl[:, 10] = self.C22l[:, 10]  # *b2*b4
                     self.Cloopl[:, 11] = self.C22l[:, 12]  # *b4*b4
 
-                    self.Cloopl[:, 12] = f1 * self.C22l[:, 23] + f1 * self.C22l[:, 24] + f1**2 * self.C22l[:, 33] + f1**2 * self.C22l[:, 34] + f1**2 * self.C22l[:, 35] + f1 * self.C13l[:, 14] + f1 * self.C13l[:, 15] + f1**2 * self.C13l[:, 18] + f1**2 * self.C13l[:, 19] + f1**2 * self.C13l[:, 20] # *bq
+                    self.Cloopl[:, 12] = f2 * self.C22l[:, 23] + f2 * self.C22l[:, 24] + f2**2 * self.C22l[:, 33] + f2**2 * self.C22l[:, 34] + f2**2 * self.C22l[:, 35] + f2 * self.C13l[:, 14] + f2 * self.C13l[:, 15] + f2**2 * self.C13l[:, 18] + f2**2 * self.C13l[:, 19] + f2**2 * self.C13l[:, 20] # *bq
                     self.Cloopl[:, 13] = self.C22l[:, 3] + self.C22l[:, 4] + self.C22l[:, 14] + self.C13l[:, 2] + self.C13l[:, 3] + self.C13l[:, 8] # *bq*bq
-                    self.Cloopl[:, 14] = self.C22l[:, 0] + self.C22l[:, 8] + f1 * self.C22l[:, 18] + f1 * self.C22l[:, 19] + self.C13l[:, 0] + self.C13l[:, 6] + f1 * self.C13l[:, 10] + f1 * self.C13l[:, 11] # *bq*b1
+                    self.Cloopl[:, 14] = self.C22l[:, 0] + self.C22l[:, 8] + f2 * self.C22l[:, 18] + f2 * self.C22l[:, 19] + self.C13l[:, 0] + self.C13l[:, 6] + f2 * self.C13l[:, 10] + f2 * self.C13l[:, 11] # *bq*b1
                     self.Cloopl[:, 15] = self.C22l[:, 1] + self.C22l[:, 11] # *bq*b2
                     self.Cloopl[:, 16] = self.C13l[:, 1] + self.C13l[:, 7] # *bq*b3
                     self.Cloopl[:, 17] = self.C22l[:, 2] + self.C22l[:, 13] # *bq*b4
 
-                if self.co.Nloop == self.co.N22 + self.co.N13:
+                if self.co.Nloop == self.co.N22 + self.co.N13: 
                     self.Ploopl[:, :self.co.N22] = self.P22l
                     self.Ploopl[:, self.co.N22:] = self.P13l
                     self.Cloopl[:, :self.co.N22] = self.C22l
@@ -825,6 +865,10 @@ class Bird(object):
         else: # halo-matter
             if self.co.Nloop == 5:
                 f1 = self.f
+                if self.co.model == 'fR':
+                    f2 = self.f[0]
+                else:
+                    f2 = f1
 
                 self.Ploopl[:, 0] = f1**2 * self.P22l[:, 6] + f1**2 * self.P22l[:, 13] + f1**2 * self.P22l[:, 14] + f1**3 * self.P22l[:, 17] + f1**3 * self.P22l[:, 18] + f1**4 * self.P22l[:, 19] + f1**4 * self.P22l[:, 20] + f1**4 * self.P22l[:, 21] + \
                     f1 * self.P13l[:, 4] + f1**2 * self.P13l[:, 7] + f1**2 * self.P13l[:, 8] + f1**3 * self.P13l[:, 9] + f1**3 * self.P13l[:, 10] # *1
@@ -833,12 +877,12 @@ class Bird(object):
                 self.Ploopl[:, 3] = self.P13l[:, 1] + f1 * self.P13l[:, 3] # *b3
                 self.Ploopl[:, 4] = self.P22l[:, 2] + f1 * self.P22l[:, 5] + f1**2 * self.P22l[:, 11] + f1**2 * self.P22l[:, 12] # *b4
 
-                self.Cloopl[:, 0] = f1**2 * self.C22l[:, 6] + f1**2 * self.C22l[:, 13] + f1**2 * self.C22l[:, 14] + f1**3 * self.C22l[:, 17] + f1**3 * self.C22l[:, 18] + f1**4 * self.C22l[:, 19] + f1**4 * self.C22l[:, 20] + f1**4 * self.C22l[:, 21] + \
-                    f1 * self.C13l[:, 4] + f1**2 * self.C13l[:, 7] + f1**2 * self.C13l[:, 8] + f1**3 * self.C13l[:, 9] + f1**3 * self.C13l[:, 10] # *1
-                self.Cloopl[:, 1] = self.C22l[:, 0] + f1**2 * self.C22l[:, 7] + f1**2 * self.C22l[:, 8]  + f1**3 * self.C22l[:, 15] + f1**3 * self.C22l[:, 16] + f1 * self.C13l[:, 2] + f1**2 * self.C13l[:, 5] + f1**2 * self.C13l[:, 6] # *b1
-                self.Cloopl[:, 2] = self.C22l[:, 1] + f1 * self.C22l[:, 4] + f1**2 * self.C22l[:, 9] + f1**2 * self.C22l[:, 10] # *b2
-                self.Cloopl[:, 3] = self.C13l[:, 1] + f1 * self.C13l[:, 3] # *b3
-                self.Cloopl[:, 4] = self.C22l[:, 2] + f1 * self.C22l[:, 5] + f1**2 * self.C22l[:, 11] + f1**2 * self.C22l[:, 12] # *b4
+                self.Cloopl[:, 0] = f2**2 * self.C22l[:, 6] + f2**2 * self.C22l[:, 13] + f2**2 * self.C22l[:, 14] + f2**3 * self.C22l[:, 17] + f2**3 * self.C22l[:, 18] + f2**4 * self.C22l[:, 19] + f2**4 * self.C22l[:, 20] + f2**4 * self.C22l[:, 21] + \
+                    f2 * self.C13l[:, 4] + f2**2 * self.C13l[:, 7] + f2**2 * self.C13l[:, 8] + f2**3 * self.C13l[:, 9] + f2**3 * self.C13l[:, 10] # *1
+                self.Cloopl[:, 1] = self.C22l[:, 0] + f2**2 * self.C22l[:, 7] + f2**2 * self.C22l[:, 8]  + f2**3 * self.C22l[:, 15] + f2**3 * self.C22l[:, 16] + f2 * self.C13l[:, 2] + f2**2 * self.C13l[:, 5] + f2**2 * self.C13l[:, 6] # *b1
+                self.Cloopl[:, 2] = self.C22l[:, 1] + f2 * self.C22l[:, 4] + f2**2 * self.C22l[:, 9] + f2**2 * self.C22l[:, 10] # *b2
+                self.Cloopl[:, 3] = self.C13l[:, 1] + f2 * self.C13l[:, 3] # *b3
+                self.Cloopl[:, 4] = self.C22l[:, 2] + f2 * self.C22l[:, 5] + f2**2 * self.C22l[:, 11] + f2**2 * self.C22l[:, 12] # *b4
 
             elif self.co.Nloop == 25:
                 pass
@@ -872,10 +916,16 @@ class Bird(object):
         self.setBias(bs)
         self.Ps = [None] * 3
         if "full" in what:
-            self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
-            self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
-            if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
-            if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
+            if self.co.model == 'fR':
+                self.Ps[0] = np.einsum('bx,lbx->lx', self.b11, self.P11l)
+                self.Ps[1] = np.einsum('bx,lbx->lx', self.bloop, self.Ploopl) + np.einsum('bx,lbx->lx', self.bct, self.Pctl)
+                if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+                if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
+            else:
+                self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
+                self.Ps[1] = np.einsum('b,lbx->lx', self.bloop, self.Ploopl) + np.einsum('b,lbx->lx', self.bct, self.Pctl)
+                if self.with_stoch: self.Ps[1] += np.einsum('b,lbx->lx', self.bst, self.Pstl)
+                if self.with_nnlo_counterterm: self.Ps[2] = np.einsum('b,lbx->lx', self.cnnlo, self.Pnnlol)
         else:
             if "linear" in what: self.Ps[0] = np.einsum('b,lbx->lx', self.b11, self.P11l)
             if "sptloop" in what:
@@ -918,7 +968,6 @@ class Bird(object):
         """ For option: which='all'. Subtract the constant stochastic term from the (22-)loop """
         for l in range(self.co.Nl):
             for n in range(self.co.Nloop):
-                # pass
                 shotnoise = self.Ploopl[l, n, 0]
                 self.Ploopl[l, n] -= shotnoise
 
@@ -939,7 +988,7 @@ class Bird(object):
         if Q is None: Q = self.Q
 
         # MP #
-        if self.with_bias or self.co.model == 'bootstrap':
+        if self.with_bias:# or self.co.model == 'bootstrap':
             self.fullIRPs = np.einsum('alpn,apnk->alk', Q, self.IRPs)
         else:
             self.fullIRPs11 = np.einsum('lpn,pnk,pi->lik', Q[0], self.IRPs11, self.co.l11)
@@ -952,22 +1001,15 @@ class Bird(object):
         ######
 
     def setresumPs(self, setfull=True):
-        
-        # MP #
-        # if self.with_bias:
-        #     self.Ps[:2] += self.fullIRPs
-        #     if setfull is True: self.setfullPs()
 
-        # else:
-        #     self.P11l += self.fullIRPs11
-        #     self.Pctl += self.fullIRPsct
-        #     self.Ploopl += self.fullIRPsloop
-        self.Ps[:2] += self.fullIRPs
-        if setfull is True: self.setfullPs()
-        self.P11l += self.fullIRPs11
-        self.Pctl += self.fullIRPsct
-        self.Ploopl += self.fullIRPsloop
-        ######
+        if self.with_bias:
+            self.Ps[:2] += self.fullIRPs
+            if setfull is True: self.setfullPs()
+
+        else:
+            self.P11l += self.fullIRPs11
+            self.Pctl += self.fullIRPsct
+            self.Ploopl += self.fullIRPsloop
 
     def setresumCf(self, setfull=True):
 

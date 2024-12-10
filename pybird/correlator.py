@@ -396,8 +396,12 @@ class Correlator(object):
         # Loading PyBird engines
         self.__load_engines(load_engines=load_engines)
 
-    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True):
-
+    def compute(self, cosmo_dict=None, cosmo_module=None, cosmo_engine=None, correlator_engine=None, do_core=True, do_survey_specific=True, bias = None):
+        #---------------------------IMPORTANT!!!-------------------------------
+        #MM: I am adding "bias" inside compute because with the bootstrap I will 
+        # define the epsilon parameters as biases, but since they are
+        # "cosmological biases" I need them when I compute things inside Bird.
+        #----------------------------------------------------------------------
         if cosmo_dict: cosmo_dict_local = cosmo_dict.copy()
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
         else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')
@@ -409,7 +413,11 @@ class Correlator(object):
         self.__is_cosmo_conflict()
 
         if do_core:
-            self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
+            if self.c["mg_model"] == 'bootstrap':
+                self.__is_bias_conflict(bias)
+                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co, bias = self.bias)
+            else:
+                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
             if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
                 ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
                 if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
@@ -877,6 +885,9 @@ class Correlator(object):
         cosmo = {}
 
         if module == 'class':
+            #MM: notice that inside the likelihood code, when correlator.compute is called, it is always set
+            # module = 'class' and this is automatically passed to set_cosmo
+            # This is important to us because we will always enter this module!!!
 
             log10kmax = 0
             if self.c["with_nnlo_counterterm"]: log10kmax = 1 # slower, but required for the wiggle-no-wiggle split scheme
@@ -917,26 +928,41 @@ class Correlator(object):
             if self.c["with_exact_time"] or self.c["with_quintessence"]:
                 cosmo["z"] = self.c["z"]
                 cosmo["Omega0_m"] = M.Omega0_m()
-                try: cosmo["w0_fld"] = cosmo_dict["w0_fld"], cosmo["wa_fld"] = cosmo_dict["wa_fld"]
+                try: cosmo["w0_fld"] = cosmo_dict["w0_fld"]#, cosmo["wa_fld"] = cosmo_dict["wa_fld"]
                 except: pass
-                if self.c["mg_model"] == "EFTofDE":
-                    try: cosmo["alpha_B0"] = cosmo_dict["alpha_B0"]
-                    except: pass
-                    try: cosmo["alpha_T0"] = cosmo_dict["alpha_T0"]
-                    except: pass
-                    try: cosmo["alpha_M0"] = cosmo_dict["alpha_M0"]
-                    except: pass
-                    try: cosmo["eta"] = cosmo_dict["eta"]
-                    except: pass
-                if self.c["expansion_model"] == "w0wa":
-                    try: 
-                        cosmo["w0_fld"] = cosmo_dict["w0_fld"]
-                        cosmo["wa_fld"] = cosmo_dict["wa_fld"]
-                    except: pass
+                if (self.c["expansion_model"] == 'w0wa' and self.c["mg_model"] != "EFTofDE"):
                     try:
-                        cosmo["eftofde_w0"] = cosmo_dict["eftofde_w0"]
-                        cosmo["eftofde_wa"] = cosmo_dict["eftofde_wa"]
-                    except: raise('You selected w0-wa as background but w0 and wa are not specified in the cosmo dictionary.')
+                        cosmo["w0_fld"] = M.pars['w0_fld']
+                        cosmo["wa_fld"] = M.pars['wa_fld']
+                    except: raise('No w0-wa selected inside the likelihood')
+                elif self.config["mg_model"] == "EFTofDE":
+                    # parameters_smg__1 ---> alpha_B0
+                    try: cosmo["alpha_B0"] = float(M.pars['parameters_smg'].split(', ')[0])
+                    except: pass
+                    # parameters_smg__2 ---> alpha_M0
+                    try: cosmo["alpha_M0"] = float(M.pars['parameters_smg'].split(', ')[1])
+                    except: pass
+                    # parameters_smg__3 ---> alpha_T0
+                    try: cosmo["alpha_T0"] = float(M.pars['parameters_smg'].split(', ')[2])
+                    except: pass
+                    # parameters_smg__4 ---> eta  (time-dep a^eta)
+                    try: cosmo["eta"] = float(M.pars['parameters_smg'].split(', ')[3])
+                    except: pass
+                    if self.config['expansion_model'] == 'w0wa':
+                    #############################################################################################
+                    #############################################################################################
+                    #############################################################################################
+                    ######################################## IMPORTANT!!! #######################################
+                    #MM: still not sure about this, Petter could you confirm???
+                    ######################################## IMPORTANT!!! #######################################
+                    #############################################################################################
+                    #############################################################################################
+                    #############################################################################################
+                        try:
+                            cosmo["w0_fld"] = float(M.pars['expansion_smg'].split(', ')[1])
+                            cosmo["wa_fld"] = float(M.pars['expansion_smg'].split(', ')[2])
+                        except: raise('You selected w0-wa as background for the EFTofDE model but w0 and wa are not specified in the cosmo dictionary. Check expansion_smg!')
+            
             if self.c["with_ap"]:
                 cosmo["H"], cosmo["DA"] = M.Hubble(self.c["z"]) / M.Hubble(0.), M.angular_distance(self.c["z"]) * M.Hubble(0.)
 
@@ -964,13 +990,7 @@ class Correlator(object):
                 elif self.c["skycut"] > 1:
                     if self.c["multipole"] != 0: cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
 
-            if self.c["expansion_model"] == 'w0wa': 
-                #Actually we don't need this since Petter already modified Hi_class
-                zm = 5. # z in matter domination
-                def scale_factor(z): return 1/(1.+z)
-                Omega0_m = cosmo["Omega0_m"]
-                w0 = cosmo["w0_fld"]
-                wa = cosmo["wa_fld"]
+            if self.c["expansion_model"] == 'w0wa':
                 #no need to rescale, I can take it directly from Class
                 if self.c["skycut"] == 1:
                     if self.c["multipole"] != 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])#self.GF.fplus(scale_factor(self.c["z"]))
@@ -989,9 +1009,15 @@ class Correlator(object):
                 back  = self.c["expansion_model"]
                 mod   = self.c["mg_model"]
                 timed = self.c["gravity_model"]
-                self.GF = GreenFunction(Omega0_m, 
-                                   alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
-                                   background = back, model = mod, timedep = timed)
+                if self.c["expansion_model"] == 'w0wa': 
+                    w0 = cosmo["w0_fld"]
+                    wa = cosmo["wa_fld"]
+                else:
+                    w0 = -1.
+                    wa = 0.
+                self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
+                                        alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
+                                        background = back, model = mod, timedep = timed)
                 Dp = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
                 Dm = self.GF.Dminus(scale_factor(self.c["z"]))/self.GF.Dminus(scale_factor(zm))
                 D_lcdm = self.GF.D_LCDM(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))

@@ -18,9 +18,10 @@ class GreenFunction(object):
                  fR0 = 0.,
                  alphaM=0., alphaT=0.,alphaB=0., eta = 1.,
                  background='lcdm', model='lcdm',timedep = 'propto_omega'):
-        options_background = ['lcdm', 'w0wa','evolve_Mp']
+        options_background = ['lcdm', 'w0wa','evolve_Mp'] #MM: notice that evolving alphaM and varying w is still not implemented, don't know if we want to do this
         options_model = ['lcdm','quintessence', 'nDGP', 'EFTofDE', 'bootstrap', 'fR']
         options_timedep = ['propto_omega', 'propto_scale', 'quasi_static_alphas_power_law', 'constant_alphas']
+
 
         self.Omega0_m = Omega0_m
         self.OmegaL_by_Omega_m = (1.-self.Omega0_m-Omega0_k)/self.Omega0_m
