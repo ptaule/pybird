@@ -86,9 +86,10 @@ class Bird(object):
         self.Cf = np.zeros(shape=(3, self.co.Nl, self.co.Ns)) # 3: linear, 1-loop, NNLO
 
         # MP #
-        # if not with_bias:
-        if not with_bias or (self.co.model == 'bootstrap'):
+        #if not with_bias or (self.co.model == 'bootstrap'):
         ######
+
+        if not with_bias:
             self.Ploopl = np.empty(shape=(self.co.Nl, self.co.Nloop, self.co.Nk))
             self.P11l = np.empty(shape=(self.co.Nl, self.co.N11, self.co.Nk))
             self.Pctl = np.empty(shape=(self.co.Nl, self.co.Nct, self.co.Nk))
@@ -127,10 +128,19 @@ class Bird(object):
             self.b13 = np.empty(shape=(self.co.Nl, self.co.N13))
             self.b22 = np.empty(shape=(self.co.Nl, self.co.N22))
             self.bct = np.empty(shape=(self.co.Nl))
+            if self.co.model == 'fR':
+                self.b11 = np.empty(shape=(self.co.Nl, self.co.Nk))
+                self.b13 = np.empty(shape=(self.co.Nl, self.co.N13, self.co.Nk))
+                self.b22 = np.empty(shape=(self.co.Nl, self.co.N22, self.co.Nk))
+                self.bct = np.empty(shape=(self.co.Nl, self.co.Nk))
         else:
             self.b11 = np.empty(shape=(self.co.N11))
             self.bct = np.empty(shape=(self.co.Nct))
             self.bloop = np.empty(shape=(self.co.Nloop))
+            if self.co.model == 'fR':
+                self.b11 = np.empty(shape=(self.co.N11, self.co.Nk))
+                self.bct = np.empty(shape=(self.co.Nct, self.co.Nk))
+                self.bloop = np.empty(shape=(self.co.Nloop, self.co.Nk))
 
         if self.with_stoch:
             # if self.co.with_cf: # no stochastic term for cf in general ; below is the stochastic terms from a Pade expansion of the Fourier-space stochastic terms
@@ -171,20 +181,20 @@ class Bird(object):
             # if self.co.with_cf: self.Cnnlol = None
             # else: self.Pnnlol = None
 
-    def setcosmo(self, cosmo, bias = None):
+    def setcosmo(self, cosmo):
 
         self.kin = cosmo["kk"]
         self.Pin = cosmo["pk_lin"]
-        if self.co.model == 'bootstrap':
-            # MP #
-            # MM: to be adjusted!!!!
-            self.epsD = cosmo["mg_parameters"]["epsD"]
-            self.epsf = cosmo["mg_parameters"]["epsf"]
-            self.epsdg = cosmo["mg_parameters"]["epsdg"]
-            self.epsag = cosmo["mg_parameters"]["epsag"]
-            self.epsdga = cosmo["mg_parameters"]["epsdga"]
-            ######
-            self.Pin = (1 + self.epsD)**2 * cosmo["P11"]
+        #if self.co.model == 'bootstrap':
+        #    # MP #
+        #    # MM: to be adjusted!!!!
+        #    self.epsD = cosmo["mg_parameters"]["epsD"]
+        #    self.epsf = cosmo["mg_parameters"]["epsf"]
+        #    self.epsdg = cosmo["mg_parameters"]["epsdg"]
+        #    self.epsag = cosmo["mg_parameters"]["epsag"]
+        #    self.epsdga = cosmo["mg_parameters"]["epsdga"]
+        #    ######
+        #    self.Pin = (1 + self.epsD)**2 * cosmo["P11"]
         try: 
             self.Plin = interp1d(self.kin, self.Pin, kind='cubic')
             self.P11 = self.Plin(self.co.k)
@@ -321,6 +331,7 @@ class Bird(object):
         ----------
         bs : array
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
+            if bootstrap option is on add: epsD, epsf, epsag, apsdg, epsdga
         """
         #***
         if self.co.model == 'bootstrap':
@@ -328,11 +339,17 @@ class Bird(object):
             self.epsf = bias["epsf"]
             self.epsD = bias["epsD"]
 
-            # f = (1 + self.epsf)*self.f
-            # self.epsD = bias["epsD"]
-            self.f = (1 + self.epsf)*self.f 
-        # else:
-        #     f = self.f
+            self.Pin = (1 + self.epsD)**2*self.Pin
+            try: 
+                self.Plin = interp1d(self.kin, self.Pin, kind='cubic')
+                self.P11 = self.Plin(self.co.k)
+            except: 
+                self.Plin = None
+                self.P11 = None
+
+            
+            self.f = (1 + self.epsf)*self.f
+
         f = self.f
         ######
         
@@ -913,7 +930,11 @@ class Bird(object):
         bs : array
             An array of 7 EFT parameters: b_1, b_2, b_3, b_4, c_{ct}/k_{nl}^2, c_{r,1}/k_{m}^2, c_{r,2}/k_{m}^2
         """
-        self.setBias(bs)
+        #MM: doing this because when bootstrap is on setBias is already done
+        if self.co.model == 'bootstrap':
+            pass
+        else:
+            if bs is not None: self.setBias(bs)
         self.Ps = [None] * 3
         if "full" in what:
             if self.co.model == 'fR':

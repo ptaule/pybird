@@ -17,6 +17,9 @@ class Likelihood(object):
         self.set_data()
         self.set_config(verbose=verbose)
         self.set_class_settings()
+        #MM: notice that nDGP is not set correctly in this likelihood, since Omega_rc is not a "cosmo" parameter
+        # as Class doesn't read it, but it is a config thing. This have to be adjusted and will become important
+        # also for f(R).
         self.correlator_sky = [Correlator(self.c_sky[i]) for i in range(self.nsky)] # skylist of PyBird correlator engine
         self.set_eft_parameters()
         self.set_boost()
@@ -168,8 +171,12 @@ class Likelihood(object):
 
         if need_cosmo_update:
             for i in range(self.nsky): 
-                self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine) # PZ: add alpha_rs here
+                self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine, bias = b_sky[i]) # PZ: add alpha_rs here
                 if self.c["with_bao_rec"]: self.alpha_sky[i] = self.get_alpha_bao_rec(class_engine, i_sky=i)
+        elif (need_cosmo_update == False) and self.c["mg_model"] == "bootstrap":
+                self.correlator_sky[i].compute(cosmo_dict=None, cosmo_module='class', cosmo_engine=class_engine, bias = b_sky[i]) # PZ: add alpha_rs here
+
+
         
         if self.marg_lkl:
             Tng_k, Tg_bk = [], []

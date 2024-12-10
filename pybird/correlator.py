@@ -129,9 +129,9 @@ class Correlator(object):
             "alphain": Option("alphain", dict,
                 description="transfer function for fnl",
                 default=None) ,
-            "mg_parameters": Option("mg_parameters", dict,
-                description="parameters for modified gravity model given in config catalog (actually only for BOOTSTRAP)",
-                default=None) ,
+            #"mg_parameters": Option("mg_parameters", dict,
+            #    description="parameters for modified gravity model given in config catalog (actually only for BOOTSTRAP)",
+            #    default=None) ,
         }
 
         self.c_catalog = {
@@ -751,11 +751,11 @@ class Correlator(object):
             raise Exception("You asked nonequal time correlator. Pleas specify: \'D1\', \'D2\', \'f1\', \'f2\'.  ")
 
         # MP #
-        if self.c["mg_model"]=="bootstrap":
-            pars = ["epsD", "epsf", "epsdg", "epsag", "epsdga"]
-            for par in pars:
-                if par not in self.cosmo["mg_parameters"]:
-                    raise Exception(f"{par} not found in 'mg_parameters'. Please specify the following parameters for bootstrap cosmology: {pars}")
+        #if self.c["mg_model"]=="bootstrap":
+        #    pars = ["epsD", "epsf", "epsdg", "epsag", "epsdga"]
+        #    for par in pars:
+        #        if par not in self.cosmo["mg_parameters"]:
+        #            raise Exception(f"{par} not found in 'mg_parameters'. Please specify the following parameters for bootstrap cosmology: {pars}")
         ######
 
 
@@ -832,6 +832,8 @@ class Correlator(object):
             elif self.c["eft_basis"] == "westcoast": self.eft_parameters_list.extend(['b1', 'c2', 'b3', 'c4'])
             elif self.c["eft_basis"] == "eastcoast": self.eft_parameters_list.extend(['b1', 'bt2', 'bG2', 'bGamma3'])
         if self.c["with_tidal_alignments"]: self.eft_parameters_list.append('bq')
+        #MM
+        if self.c['mg_model'] == 'bootstrap': self.eft_parameters_list.extend(['epsD', 'epsf', 'epsag', 'epsdg', 'epsdga'])
 
     def __read_config(self, config_dict):
 
@@ -880,6 +882,10 @@ class Correlator(object):
             if self.c["redshift_bin_zz"] is None or self.c["redshift_bin_nz"] is None: raise Exception("You asked to account for the galaxy counts distribution over a redshift bins. Please provide a distribution \'redshift_bin_nz\' and corresponding \'redshift_bin_zz\'. ")
         if self.c["with_wedge"] and self.c["wedge_mat_wl"] is None: raise Exception("Please specify \'wedge_mat_wl\'.")
 
+        #MM: just setting it to be sure
+        if self.c["mg_model"] == 'bootstrap':
+            self.c["with_exact_time"] = True
+
     def set_cosmo(self, cosmo_dict, module='class', engine=None):
 
         cosmo = {}
@@ -904,8 +910,8 @@ class Correlator(object):
                     cosmo_dict_local["Omega_Lambda"] = 0.#1 - (cosmo_dict_local["omega_b"] + cosmo_dict_local["omega_cdm"])/(cosmo_dict_local["h"]**2)
 
                 # MP #
-                if self.c["mg_model"]=="bootstrap":
-                    del cosmo_dict_local["mg_parameters"]
+                #if self.c["mg_model"]=="bootstrap":
+                #    del cosmo_dict_local["mg_parameters"]
                 ######
 
             
@@ -1082,8 +1088,8 @@ class Correlator(object):
 
 
             # MP #
-            if self.c["mg_model"]=="bootstrap":
-                cosmo["mg_parameters"] = cosmo_dict["mg_parameters"]
+            #if self.c["mg_model"]=="bootstrap":
+            #    cosmo["mg_parameters"] = cosmo_dict["mg_parameters"]
             ######
 
             return cosmo
