@@ -20,10 +20,6 @@ class ReadWrite(object):
         options_in_config = ['with_bao_rec', "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin", "with_stoch", "with_nnlo_counterterm", "with_exact_time"]
         for keys in options_in_config:
             if not keys in c: c[keys] = False
-        # MM: add this for default MG pars
-        default_mg = {"Omega_rc": 0., "fR0": 0., "expansion_model": 'lcdm', "mg_model": 'lcdm', "gravity_model": 'propto_Omega'}
-        for keys in default_mg.keys():
-            if not keys in c: c[keys] = default_mg[keys]
         for sky, cut in c['sky'].items():
             if verbose: print ('-----------------------')
             if sky not in d: raise Exception("no sky: %s in data" % sky)
@@ -67,16 +63,26 @@ class ReadWrite(object):
     def config(self, c, fd_sky):
         options_for_correlator = ["output", "multipole", "km", "kr", "nd", 
                                   "eft_basis", "with_stoch", "with_nnlo_counterterm", 
-                                  "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin",
+                                  "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin"]
                                   #MM: added the exact time, with all the models
-                                  "with_exact_time", "Omega_rc", "fR0", "expansion_model", "mg_model", "gravity_model"]
+                                  #"with_exact_time", "Omega_rc", "fR0", "expansion_model", "mg_model", "gravity_model"]
 
+        # MM: add this for default MG pars
+        default_mg = {"Omega_rc": 0., "fR0": 0.,
+                      "expansion_model": 'lcdm', "mg_model": 'lcdm',
+                      "gravity_model": 'propto_omega', "with_exact_time": False}
         fc_sky = [] # skylist of formatted config dict for Correlator
 
         for sky, fd in zip(c['sky'].keys(), fd_sky):
             fc = {}
             for option in options_for_correlator: 
                 fc[option] = c[option]
+            #MM: MG part
+            for keys in default_mg.keys():
+                if keys in c.keys():
+                    fc[keys] = c[keys]
+                else: c[keys] = default_mg[keys]
+            print('fc dict inside io_pb: ', fc) #MM this is for debugging, to remove once it's fixed
             fc['z'] = fd['z']
             fc['xdata'] = fd['x']
             if 'Pk' in c['output']: fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.05 # we take some margin
