@@ -21,7 +21,7 @@ class ReadWrite(object):
         for keys in options_in_config:
             if not keys in c: c[keys] = False
         # MM: add this for default MG pars
-        default_mg = {"Omega_rc": None, "fR0": None, "expansion_model": 'lcdm', "mg_model": 'lcdm', "gravity_model": None}
+        default_mg = {"Omega_rc": 0., "fR0": 0., "expansion_model": 'lcdm', "mg_model": 'lcdm', "gravity_model": 'propto_Omega'}
         for keys in default_mg.keys():
             if not keys in c: c[keys] = default_mg[keys]
         for sky, cut in c['sky'].items():

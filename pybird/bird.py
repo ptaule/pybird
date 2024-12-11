@@ -73,7 +73,7 @@ class Bird(object):
         self.with_nnlo_counterterm = with_nnlo_counterterm
         self.with_tidal_alignments = self.co.with_tidal_alignments
 
-        if cosmology is not None: self.setcosmo(cosmology, bias = bias)
+        if cosmology is not None: self.setcosmo(cosmology)#, bias = bias)
 
         self.P22 = np.empty(shape=(self.co.N22, self.co.Nk))
         self.P13 = np.empty(shape=(self.co.N13, self.co.Nk))
