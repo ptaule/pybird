@@ -17,10 +17,13 @@ class ReadWrite(object):
 
     def check(self, c, d, verbose=True):
         #these are the options present only inside the likelihood
-        options_in_config = ['with_bao_rec', "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin", "with_stoch", "with_nnlo_counterterm"]
+        options_in_config = ['with_bao_rec', "with_ap", "with_survey_mask", "with_binning", "with_wedge", "with_redshift_bin", "with_stoch", "with_nnlo_counterterm", "with_exact_time"]
         for keys in options_in_config:
             if not keys in c: c[keys] = False
-                
+        # MM: add this for default MG pars
+        default_mg = {"Omega_rc": None, "fR0": None, "expansion_model": 'lcdm', "mg_model": 'lcdm', "gravity_model": None}
+        for keys in default_mg.keys():
+            if not keys in c: c[keys] = default_mg[keys]
         for sky, cut in c['sky'].items():
             if verbose: print ('-----------------------')
             if sky not in d: raise Exception("no sky: %s in data" % sky)
@@ -72,7 +75,8 @@ class ReadWrite(object):
 
         for sky, fd in zip(c['sky'].keys(), fd_sky):
             fc = {}
-            for option in options_for_correlator: fc[option] = c[option]
+            for option in options_for_correlator: 
+                fc[option] = c[option]
             fc['z'] = fd['z']
             fc['xdata'] = fd['x']
             if 'Pk' in c['output']: fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.05 # we take some margin

@@ -936,6 +936,11 @@ class Correlator(object):
                 cosmo["Omega0_m"] = M.Omega0_m()
                 try: cosmo["w0_fld"] = cosmo_dict["w0_fld"]#, cosmo["wa_fld"] = cosmo_dict["wa_fld"]
                 except: pass
+                if self.c["mg_model"] == "EFTofDE":
+                    try: self.c["expansion_model"] = M.pars["expansion_model"]
+                    except: raise('Asked for EFTofDE, but no expansion_model provided in the log.param')
+                    try: self.c["gravity_model"] = M.pars["gravity_model"]
+                    except: raise('Asked for EFTofDE, but no gravity_model provided in the log.param')
                 if (self.c["expansion_model"] == 'w0wa' and self.c["mg_model"] != "EFTofDE"):
                     try:
                         cosmo["w0_fld"] = M.pars['w0_fld']
@@ -982,18 +987,12 @@ class Correlator(object):
                 cosmo["pk_lin"] *= Dp**2 / D_lcdm**2 #GF.D(scale_factor(zfid))**2/M.scale_independent_growth_factor(zfid)**2 #
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 #if self.c["multipole"]!=0: cosmo["f"] = GF.fplus(scale_factor(zfid))
-                if self.c["skycut"] == 1:
-                    if self.c["multipole"] != 0: cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
-                elif self.c["skycut"] > 1:
-                    if self.c["multipole"] != 0: cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
+                cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
 
             if self.c["expansion_model"] == 'w0wa':
                 #no need to rescale, I can take it directly from Class
-                if self.c["skycut"] == 1:
-                    if self.c["multipole"] != 0: cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])#self.GF.fplus(scale_factor(self.c["z"]))
-                elif self.c["skycut"] > 1:
-                    if self.c["multipole"] != 0: cosmo["fz"] = np.array([M.scale_independent_growth_factor_f(z) for z in self.c["redshift_bin_zz"]])#np.array([self.GF.fplus(scale_factor(z)) for z in self.c["z"]])
-
+                cosmo["f"] = M.scale_independent_growth_factor_f(self.c["z"])#self.GF.fplus(scale_factor(self.c["z"]))
+                
             if self.c["mg_model"] == 'EFTofDE':
                 #starting depp inside matter domination
                 zm = 5.
@@ -1016,13 +1015,8 @@ class Correlator(object):
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
                                         background = back, model = mod, timedep = timed)
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
-                if self.c["skycut"] == 1:
-                    if self.c["multipole"] != 0:
-                        cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
-                elif self.c["skycut"] > 1:
-                    if self.c["multipole"] != 0:
-                        cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
-
+                cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
+                
             if self.c["mg_model"] == "quintessence":
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
                 # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
