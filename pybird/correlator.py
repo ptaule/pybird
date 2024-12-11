@@ -1015,7 +1015,7 @@ class Correlator(object):
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
                                         background = back, model = mod, timedep = timed)
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
-                cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
+                cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
                 
             if self.c["mg_model"] == "quintessence":
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
