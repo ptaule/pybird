@@ -941,7 +941,7 @@ class Correlator(object):
                         cosmo["w0_fld"] = M.pars['w0_fld']
                         cosmo["wa_fld"] = M.pars['wa_fld']
                     except: raise('No w0-wa selected inside the likelihood')
-                elif self.config["mg_model"] == "EFTofDE":
+                elif self.c["mg_model"] == "EFTofDE":
                     # parameters_smg__1 ---> alpha_B0
                     try: cosmo["alpha_B0"] = float(M.pars['parameters_smg'].split(', ')[0])
                     except: pass
@@ -954,16 +954,7 @@ class Correlator(object):
                     # parameters_smg__4 ---> eta  (time-dep a^eta)
                     try: cosmo["eta"] = float(M.pars['parameters_smg'].split(', ')[3])
                     except: pass
-                    if self.config['expansion_model'] == 'w0wa':
-                    #############################################################################################
-                    #############################################################################################
-                    #############################################################################################
-                    ######################################## IMPORTANT!!! #######################################
-                    #MM: still not sure about this, Petter could you confirm???
-                    ######################################## IMPORTANT!!! #######################################
-                    #############################################################################################
-                    #############################################################################################
-                    #############################################################################################
+                    if self.c['expansion_model'] == 'w0wa':
                         try:
                             cosmo["w0_fld"] = float(M.pars['expansion_smg'].split(', ')[1])
                             cosmo["wa_fld"] = float(M.pars['expansion_smg'].split(', ')[2])
@@ -1024,15 +1015,13 @@ class Correlator(object):
                 self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
                                         background = back, model = mod, timedep = timed)
-                Dp = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
-                Dm = self.GF.Dminus(scale_factor(self.c["z"]))/self.GF.Dminus(scale_factor(zm))
-                D_lcdm = self.GF.D_LCDM(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
-                cosmo["pk_lin"] *= Dp**2 / D_lcdm**2# D_class**2
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 if self.c["skycut"] == 1:
-                        if self.c["multipole"] != 0: cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
+                    if self.c["multipole"] != 0:
+                        cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"][0]))
                 elif self.c["skycut"] > 1:
-                        if self.c["multipole"] != 0: cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
+                    if self.c["multipole"] != 0:
+                        cosmo["fz"] = np.array([self.GF.fplus(scale_factor(z)) for z in self.c["redshift_bin_zz"]])
 
             if self.c["mg_model"] == "quintessence":
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
