@@ -82,7 +82,6 @@ class ReadWrite(object):
                 if keys in c.keys():
                     fc[keys] = c[keys]
                 else: c[keys] = default_mg[keys]
-            print('fc dict inside io_pb: ', fc) #MM this is for debugging, to remove once it's fixed
             fc['z'] = fd['z']
             fc['xdata'] = fd['x']
             if 'Pk' in c['output']: fc['kmax'] = max([k[-1] for k in fd['x_arr']]) + 0.05 # we take some margin

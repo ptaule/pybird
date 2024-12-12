@@ -73,6 +73,8 @@ class Bird(object):
         self.with_nnlo_counterterm = with_nnlo_counterterm
         self.with_tidal_alignments = self.co.with_tidal_alignments
 
+        self.GF = GF
+
         if cosmology is not None: self.setcosmo(cosmology)#, bias = bias)
 
         self.P22 = np.empty(shape=(self.co.N22, self.co.Nk))
@@ -176,8 +178,6 @@ class Bird(object):
             self.Cnnlol = None
 
         if bias is not None: self.setBias(bias) #I need this for the bootstrap
-            
-        self.GF = GF
         
             # if self.co.with_cf: self.Cnnlol = None
             # else: self.Pnnlol = None
@@ -259,18 +259,6 @@ class Bird(object):
             self.a = 1/(1.+self.z)
             if self.GF is None:
                 raise Exception("You selected exact_time_dependence but didn't specifiy a GF, see correlator.py")
-            #self.GF = GreenFunction(self.Omega0_m,
-            #                        w=self.w0,
-            #                        wa=self.wa,
-            #                        Omega_rc=self.Om_rc,
-            #                        fR0=self.fR0,
-            #                        background=self.co.background,
-            #                        model = self.co.model,
-            #                        timedep=self.co.timedep,
-            #                        alphaT = self.alphaT,
-            #                        alphaB = self.alphaB,
-            #                        alphaM = self.alphaM,
-            #                        eta = self.eta)
 
 
             if self.co.model == "bootstrap":

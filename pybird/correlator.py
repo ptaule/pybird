@@ -675,7 +675,6 @@ class Correlator(object):
             #fR0=self.c["fR0"],
             background = self.c["expansion_model"],
             model = self.c["mg_model"],
-            timedep = self.c["gravity_model"],
             quintessence=self.c["with_quintessence"],
             accboost=self.c["accboost"],
             with_uvmatch=self.c["with_uvmatch_2"],
@@ -1004,7 +1003,6 @@ class Correlator(object):
                 eta   = cosmo["eta"]
                 back  = self.c["expansion_model"]
                 mod   = self.c["mg_model"]
-                timed = self.c["gravity_model"]
                 if self.c["expansion_model"] == 'w0wa': 
                     w0 = cosmo["w0_fld"]
                     wa = cosmo["wa_fld"]
@@ -1013,7 +1011,7 @@ class Correlator(object):
                     wa = 0.
                 self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
-                                        background = back, model = mod, timedep = timed)
+                                        background = back, model = mod, timedep = self.c["gravity_model"])
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
 
