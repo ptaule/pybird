@@ -406,6 +406,7 @@ class Correlator(object):
         elif cosmo_module and cosmo_engine: cosmo_dict_local = {}
         else: raise Exception('provide cosmo_dict or CLASSy engine with cosmo_module=\'class\' ')
         if cosmo_module: # works only with classy now
+            self.GF = None
             cosmo_dict_class = self.set_cosmo(cosmo_dict, module=cosmo_module, engine=cosmo_engine)
             cosmo_dict_local.update(cosmo_dict_class)
 
