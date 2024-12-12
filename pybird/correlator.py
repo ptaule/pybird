@@ -979,9 +979,9 @@ class Correlator(object):
                 def scale_factor(z): return 1/(1.+z)
                 Omega0_m = cosmo["Omega0_m"]
                 Om_rc = self.c["Omega_rc"]
-                self.GF = self.bird.GF
-                #self.GF = GreenFunction(Omega0_m, background='lcdm', model = self.c['model'], Omega_rc = Om_rc)
-                Dp = self.GF.D(scale_factor(z))/self.GF.D(scale_factor(zm))
+                #self.GF = self.bird.GF
+                self.GF = GreenFunction(Omega0_m, background='lcdm', model = self.c['model'], Omega_rc = Om_rc)
+                Dp = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
                 D_class = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
                 D_lcdm = self.GF.D_LCDM(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
                 cosmo["pk_lin"] *= Dp**2 / D_lcdm**2
@@ -1011,10 +1011,10 @@ class Correlator(object):
                 else:
                     w0 = -1.
                     wa = 0.
-                self.GF = self.bird.GF
-                #self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
-                          #              alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
-                          #              background = back, model = mod, timedep = timed)
+                #self.GF = self.bird.GF
+                self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
+                                        alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
+                                        background = back, model = mod, timedep = timed)
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
                 
@@ -1027,8 +1027,8 @@ class Correlator(object):
                 cosmo["Omega0_m"] = M.Omega0_m()
                 Omega0_m = cosmo["Omega0_m"]
                 w = cosmo["w0_fld"]
-                self.GF = self.bird.GF
-                #self.GF = GreenFunction(Omega0_m, w=w, background='w0wa', model = 'quintessence')
+                #self.GF = self.bird.GF
+                self.GF = GreenFunction(Omega0_m, w=w, background='w0wa', model = 'quintessence')
                 Dq = self.GF.D(scale_factor(self.c["z"])) / self.GF.D(scale_factor(zm))
                 Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
                 cosmo["pk_lin"] *= Dq**2 / Dm**2 * ( 1 + (1+w)/(1.-3*w) * (1-Omega0_m)/Omega0_m * (1+zm)**(3*w) )**2 # 1611.07966 eq. (4.15)
