@@ -415,9 +415,9 @@ class Correlator(object):
         if do_core:
             if self.c["mg_model"] == 'bootstrap':
                 self.__is_bias_conflict(bias)
-                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co, bias = self.bias)
+                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co, bias = self.bias, GF = self.GF)
             else:
-                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co)
+                self.bird = Bird(self.cosmo, with_bias=self.c["with_bias"], eft_basis=self.c["eft_basis"], with_stoch=self.c["with_stoch"], with_nnlo_counterterm=self.c["with_nnlo_counterterm"], co=self.co, GF = self.GF)
             if self.c["with_nnlo_counterterm"]: # we use smooth power spectrum since we don't want spurious BAO signals
                 ilogPsmooth = interp1d(np.log(self.bird.kin), np.log(self.cosmo["Psmooth"]), fill_value='extrapolate')
                 if self.c["with_cf"]: self.nnlo_counterterm.Cf(self.bird, ilogPsmooth)
@@ -979,7 +979,6 @@ class Correlator(object):
                 def scale_factor(z): return 1/(1.+z)
                 Omega0_m = cosmo["Omega0_m"]
                 Om_rc = self.c["Omega_rc"]
-                #self.GF = self.bird.GF
                 self.GF = GreenFunction(Omega0_m, background='lcdm', model = self.c['model'], Omega_rc = Om_rc)
                 Dp = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(zm))
                 D_class = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)
@@ -1011,13 +1010,19 @@ class Correlator(object):
                 else:
                     w0 = -1.
                     wa = 0.
-                #self.GF = self.bird.GF
                 self.GF = GreenFunction(Omega0_m,w = w0, wa = wa,
                                         alphaM=alphaM0, alphaT=alphaT0,alphaB=alphaB0, eta = eta,
                                         background = back, model = mod, timedep = timed)
                 cosmo["D"] = self.GF.D(scale_factor(self.c["z"]))/self.GF.D(scale_factor(0))
                 cosmo["f"] = self.GF.fplus(scale_factor(self.c["z"]))
-                
+
+            if self.c["mg_model"] == 'bootstrap':
+                Omega0_m = cosmo["Omega0_m"]
+                self.GF = GreenFunction(Omega0_m, background = 'lcdm', model = self.c["mg_model"])
+            if self.c["mg_model"] == 'lcdm':
+                Omega0_m = cosmo["Omega0_m"]
+                self.GF = GreenFunction(Omega0_m, background = 'lcdm', model = 'lcdm')
+
             if self.c["mg_model"] == "quintessence":
                 # starting deep inside matter domination and evolving to the total adiabatic linear power spectrum.
                 # This does not work in the general case, e.g. with massive neutrinos (okish for minimal mass though)
@@ -1027,7 +1032,6 @@ class Correlator(object):
                 cosmo["Omega0_m"] = M.Omega0_m()
                 Omega0_m = cosmo["Omega0_m"]
                 w = cosmo["w0_fld"]
-                #self.GF = self.bird.GF
                 self.GF = GreenFunction(Omega0_m, w=w, background='w0wa', model = 'quintessence')
                 Dq = self.GF.D(scale_factor(self.c["z"])) / self.GF.D(scale_factor(zm))
                 Dm = M.scale_independent_growth_factor(self.c["z"]) / M.scale_independent_growth_factor(zm)

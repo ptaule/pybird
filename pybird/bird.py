@@ -63,7 +63,7 @@ class Bird(object):
         EFT parameters for the counter terms per multipole
     """
 
-    def __init__(self, cosmology=None, with_bias=True, eft_basis='eftoflss', with_stoch=False, with_nnlo_counterterm=False, co=co, bias = None):
+    def __init__(self, cosmology=None, with_bias=True, eft_basis='eftoflss', with_stoch=False, with_nnlo_counterterm=False, co=co, bias = None, GF = None):
 
         self.co = co
 
@@ -177,6 +177,7 @@ class Bird(object):
 
         if bias is not None: self.setBias(bias) #I need this for the bootstrap
             
+        self.GF = GF
         
             # if self.co.with_cf: self.Cnnlol = None
             # else: self.Pnnlol = None
@@ -256,18 +257,20 @@ class Bird(object):
                 self.alphaM = None
                 self.eta = None
             self.a = 1/(1.+self.z)
-            self.GF = GreenFunction(self.Omega0_m,
-                                    w=self.w0,
-                                    wa=self.wa,
-                                    Omega_rc=self.Om_rc,
-                                    fR0=self.fR0,
-                                    background=self.co.background,
-                                    model = self.co.model,
-                                    timedep=self.co.timedep,
-                                    alphaT = self.alphaT,
-                                    alphaB = self.alphaB,
-                                    alphaM = self.alphaM,
-                                    eta = self.eta)
+            if self.GF is None:
+                raise Exception("You selected exact_time_dependence but didn't specifiy a GF, see correlator.py")
+            #self.GF = GreenFunction(self.Omega0_m,
+            #                        w=self.w0,
+            #                        wa=self.wa,
+            #                        Omega_rc=self.Om_rc,
+            #                        fR0=self.fR0,
+            #                        background=self.co.background,
+            #                        model = self.co.model,
+            #                        timedep=self.co.timedep,
+            #                        alphaT = self.alphaT,
+            #                        alphaB = self.alphaB,
+            #                        alphaM = self.alphaM,
+            #                        eta = self.eta)
 
 
             if self.co.model == "bootstrap":
